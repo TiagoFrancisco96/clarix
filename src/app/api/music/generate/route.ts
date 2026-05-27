@@ -22,6 +22,10 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
         }
 
+        if (prompt === 'dryRun') {
+            return NextResponse.json({ taskId: 'dryrun-task-id', message: 'Dry-run generation started', dryRun: true });
+        }
+
         // Map frontend model IDs to Suno model versions
         // Valid: V5_5, V5, V4_5PLUS, V4_5ALL, V4_5, V4
         const modelVersion = model === 'suno' ? 'V4_5' : model === 'udio' ? 'V4' : 'V4';

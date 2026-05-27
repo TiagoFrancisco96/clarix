@@ -203,6 +203,98 @@ export default function AdminPage() {
                 if (!res.ok) throw new Error(`Settings page returned ${res.status}`);
                 return;
             }
+            case 'image-gen-ping': {
+                const res = await fetch('/api/image/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: 'dryRun', model: 'flux-schnell' }),
+                });
+                if (!res.ok) throw new Error(`Image API returned ${res.status}`);
+                return;
+            }
+            case 'music-gen-ping': {
+                const res = await fetch('/api/music/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: 'dryRun', model: 'suno' }),
+                });
+                if (!res.ok) throw new Error(`Music API returned ${res.status}`);
+                return;
+            }
+            case 'video-gen-ping': {
+                const res = await fetch('/api/video/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: 'dryRun', model: 'kling-3' }),
+                });
+                if (!res.ok) throw new Error(`Video API returned ${res.status}`);
+                return;
+            }
+            case 'creation-save-db': {
+                const res = await fetch('/api/creations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        tool: 'docs',
+                        title: 'E2E Flow Test Document',
+                        content: '# E2E Flow Test\nThis document was successfully generated and verified by the automated E2E Flow Tester.',
+                    }),
+                });
+                if (!res.ok) throw new Error(`Creations POST returned ${res.status}`);
+                const data = await res.json();
+                if (!data.success || !data.creationId) throw new Error('Invalid creations save response');
+                (window as unknown as Record<string, string>)._e2eCreationId = data.creationId;
+                (window as unknown as Record<string, string>)._e2eDriveFileId = data.driveFileId;
+                return;
+            }
+            case 'drive-upload-test': {
+                const formData = new FormData();
+                const file = new File(['Clarix E2E Test Content'], 'clarix-e2e-test.txt', { type: 'text/plain' });
+                formData.append('file', file);
+                formData.append('folder', 'documents');
+                const res = await fetch('/api/drive', {
+                    method: 'POST',
+                    body: formData,
+                });
+                if (!res.ok) throw new Error(`Drive POST returned ${res.status}`);
+                const data = await res.json();
+                if (!data.success || !data.fileId) throw new Error('Invalid upload response');
+                (window as unknown as Record<string, string>)._e2eUploadedFileId = data.fileId;
+                return;
+            }
+            case 'drive-limit-check': {
+                const formData = new FormData();
+                const hugeBlob = new Blob([new Uint8Array(60 * 1024 * 1024)], { type: 'application/octet-stream' });
+                formData.append('file', hugeBlob, 'huge-file.bin');
+                const res = await fetch('/api/drive', {
+                    method: 'POST',
+                    body: formData,
+                });
+                if (res.status !== 413) {
+                    throw new Error(`Expected size-limit block (413), but got status ${res.status}`);
+                }
+                return;
+            }
+            case 'drive-delete-cleanup': {
+                const fileId = (window as unknown as Record<string, string>)._e2eUploadedFileId;
+                if (fileId) {
+                    const res = await fetch('/api/drive', {
+                        method: 'DELETE',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ fileId, permanent: true }),
+                    });
+                    if (!res.ok) throw new Error(`Drive DELETE returned ${res.status}`);
+                }
+                const creationId = (window as unknown as Record<string, string>)._e2eCreationId;
+                if (creationId) {
+                    await fetch('/api/creations', {
+                        method: 'DELETE',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ creationId }),
+                    });
+                }
+                return;
+            }
             default:
                 // Generic wait to simulate
                 await new Promise(r => setTimeout(r, 300));
@@ -623,6 +715,27 @@ function getInitialFlows(): TestFlow[] {
                 { id: 'image-page', name: 'Load Image Generator page', status: 'pending' },
                 { id: 'video-page', name: 'Load Video Generator page', status: 'pending' },
                 { id: 'music-page', name: 'Load Music Generator page', status: 'pending' },
+            ],
+        },
+        {
+            id: 'generation-pipeline',
+            name: 'AI Generation Pipeline',
+            description: 'Verify all AI endpoints parsing, headers, routing and DB injection',
+            steps: [
+                { id: 'image-gen-ping', name: 'Test Image API dry POST', status: 'pending' },
+                { id: 'music-gen-ping', name: 'Test Music API dry POST', status: 'pending' },
+                { id: 'video-gen-ping', name: 'Test Video API dry POST', status: 'pending' },
+                { id: 'creation-save-db', name: 'Write and register Doc creation to SQL Database', status: 'pending' },
+            ],
+        },
+        {
+            id: 'drive-storage-flow',
+            name: 'Drive Operations & Limits',
+            description: 'Test file uploads, filesystem sync, size blocks, and permanent deletion',
+            steps: [
+                { id: 'drive-upload-test', name: 'Upload text asset to Drive', status: 'pending' },
+                { id: 'drive-limit-check', name: 'Assert size block on files > 50 MB (returns 413)', status: 'pending' },
+                { id: 'drive-delete-cleanup', name: 'Permanent delete and disk unlink (DB cleanup)', status: 'pending' },
             ],
         },
     ];

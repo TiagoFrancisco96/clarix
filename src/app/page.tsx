@@ -817,16 +817,16 @@ export default function HomePage() {
             <div className="home-footer__col">
               <h4>Resources</h4>
               <Link href="/api-docs">API Reference</Link>
-              <Link href="/changelog">Changelog</Link>
+              <Link href="/info?tab=changelog">Changelog</Link>
               <Link href="/status">Status</Link>
-              <Link href="/blog">Blog</Link>
+              <Link href="/info?tab=blog">Blog</Link>
             </div>
 
             <div className="home-footer__col">
               <h4>Company</h4>
-              <Link href="/about">About</Link>
-              <Link href="/careers">Careers</Link>
-              <Link href="/contact">Contact</Link>
+              <Link href="/info?tab=about">About</Link>
+              <Link href="/info?tab=careers">Careers</Link>
+              <Link href="/info?tab=contact">Contact</Link>
             </div>
           </div>
 

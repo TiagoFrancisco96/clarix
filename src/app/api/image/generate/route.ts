@@ -41,6 +41,10 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
         }
 
+        if (prompt === 'dryRun') {
+            return NextResponse.json({ url: '/logo.png', dryRun: true });
+        }
+
         let imageUrl = '';
         let fallback: { from: string; to: string; reason: string } | null = null;
 
