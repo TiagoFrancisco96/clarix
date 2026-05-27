@@ -33,9 +33,23 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# auth database
+auth.db
+
 # vercel
 .vercel
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# SQLite WAL files
+auth.db-shm
+auth.db-wal
+
+# Build log
+build_log.txt
+
+# Temp testing files and uploads
+test-download.mp3
+uploads/
