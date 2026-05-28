@@ -110,6 +110,16 @@ const FAQS = [
   },
 ];
 
+/* ── Prompt Suggestions ── */
+const PROMPT_SUGGESTIONS = [
+  { label: '✨ Design a logo for my startup', mode: 'create' as const },
+  { label: '📝 Write a blog post about AI trends', mode: 'research' as const },
+  { label: '🎵 Compose a lo-fi study beat', mode: 'create' as const },
+  { label: '📊 Create a pitch deck for investors', mode: 'create' as const },
+  { label: '🔍 Compare React vs Vue for my project', mode: 'research' as const },
+  { label: '🎬 Make a product demo video', mode: 'create' as const },
+];
+
 /* ── Main Homepage ── */
 export default function HomePage() {
   const [promptValue, setPromptValue] = useState('');
@@ -128,6 +138,8 @@ export default function HomePage() {
   const { data: session } = useSession();
 
   const modelsRef = useScrollReveal();
+  const howRef = useScrollReveal();
+  const socialRef = useScrollReveal();
   const toolsRef = useScrollReveal();
   const featuresRef = useScrollReveal();
   const ctaRef = useScrollReveal();
@@ -240,13 +252,13 @@ export default function HomePage() {
           </div>
 
           <h1 className="hero__title">
-            <span className="hero__title-line">One workspace.</span>
-            <span className="hero__title-line hero__title-gradient">Every AI tool you need.</span>
+            <span className="hero__title-line">Create anything.</span>
+            <span className="hero__title-line hero__title-gradient">Research everything.</span>
           </h1>
 
           <p className="hero__desc">
-            Write, create images, make videos, compose music, build presentations &mdash;
-            all powered by the world&apos;s best AI, working together for you.
+            15 AI tools in one workspace &mdash; images, videos, music, docs, code, and more.
+            Powered by the world&apos;s best AI, working together for you.
           </p>
 
           {/* ── Interactive Prompt Bar ── */}
@@ -336,23 +348,31 @@ export default function HomePage() {
               </div>
             </div>
             <p className="prompt-hint">Press <kbd>Enter</kbd> to launch &middot; Mode auto-detects from your prompt</p>
+            <div className="prompt-suggestions">
+              {PROMPT_SUGGESTIONS.map((s, i) => (
+                <button
+                  key={i}
+                  className="prompt-suggestions__chip"
+                  onClick={() => {
+                    setPromptValue(s.label.replace(/^[^\s]+\s/, ''));
+                    setActiveMode(s.mode);
+                    inputRef.current?.focus();
+                  }}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Trust Indicators */}
-          <div className="hero__trust">
-            <div className="hero__trust-item">
-              <span className="hero__trust-number"><AnimCounter target={4} /></span>
-              <span>AI Brains</span>
-            </div>
-            <div className="hero__trust-divider" />
-            <div className="hero__trust-item">
-              <span className="hero__trust-number"><AnimCounter target={15} /></span>
-              <span>Creative Tools</span>
-            </div>
-            <div className="hero__trust-divider" />
-            <div className="hero__trust-item">
-              <span className="hero__trust-number">Free</span>
-              <span>To Start</span>
+          {/* Powered By */}
+          <div className="hero__powered-by">
+            <span className="hero__powered-by-label">Powered by</span>
+            <div className="hero__powered-by-logos">
+              <span className="hero__provider-badge">OpenAI</span>
+              <span className="hero__provider-badge">Anthropic</span>
+              <span className="hero__provider-badge">Google</span>
+              <span className="hero__provider-badge">DeepSeek</span>
             </div>
           </div>
         </section>
@@ -373,6 +393,77 @@ export default function HomePage() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── How It Works ── */}
+        <section className="how-section reveal" ref={howRef as React.RefObject<HTMLElement>}>
+          <div className="how-section__header">
+            <span className="section-label">Simple as 1-2-3</span>
+            <h2 className="section-title">How Clarix works</h2>
+          </div>
+          <div className="how-steps">
+            <div className="how-step">
+              <div className="how-step__number">1</div>
+              <h3 className="how-step__title">Type your prompt</h3>
+              <p className="how-step__desc">Describe what you need &mdash; an image, a document, research, code, anything.</p>
+            </div>
+            <div className="how-step__connector">
+              <svg width="40" height="2" viewBox="0 0 40 2"><line x1="0" y1="1" x2="40" y2="1" stroke="var(--accent-gold)" strokeWidth="2" strokeDasharray="4 4" opacity="0.4" /></svg>
+            </div>
+            <div className="how-step">
+              <div className="how-step__number">2</div>
+              <h3 className="how-step__title">AI picks the best model</h3>
+              <p className="how-step__desc">Clarix routes to OpenAI, Anthropic, Google, or DeepSeek &mdash; whichever is best for your task.</p>
+            </div>
+            <div className="how-step__connector">
+              <svg width="40" height="2" viewBox="0 0 40 2"><line x1="0" y1="1" x2="40" y2="1" stroke="var(--accent-gold)" strokeWidth="2" strokeDasharray="4 4" opacity="0.4" /></svg>
+            </div>
+            <div className="how-step">
+              <div className="how-step__number">3</div>
+              <h3 className="how-step__title">Get your result</h3>
+              <p className="how-step__desc">Receive polished outputs &mdash; text, images, videos, music, presentations &mdash; all in one place.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Social Proof ── */}
+        <section className="social-proof reveal" ref={socialRef as React.RefObject<HTMLElement>}>
+          <div className="social-proof__header">
+            <span className="section-label">Loved by creators</span>
+            <h2 className="section-title">What people are saying</h2>
+          </div>
+          <div className="testimonials-grid">
+            <div className="testimonial-card">
+              <p className="testimonial-card__quote">&ldquo;I used to juggle ChatGPT, Midjourney, and Suno separately. Clarix replaced all of them with one workspace. Saves me hours every week.&rdquo;</p>
+              <div className="testimonial-card__author">
+                <div className="testimonial-card__avatar">MR</div>
+                <div>
+                  <span className="testimonial-card__name">Marco R.</span>
+                  <span className="testimonial-card__role">Content Creator</span>
+                </div>
+              </div>
+            </div>
+            <div className="testimonial-card">
+              <p className="testimonial-card__quote">&ldquo;The smart routing is magic. I just type what I need and it picks the right AI. My team&apos;s productivity jumped 40% in the first month.&rdquo;</p>
+              <div className="testimonial-card__author">
+                <div className="testimonial-card__avatar">SK</div>
+                <div>
+                  <span className="testimonial-card__name">Sarah K.</span>
+                  <span className="testimonial-card__role">Startup Founder</span>
+                </div>
+              </div>
+            </div>
+            <div className="testimonial-card">
+              <p className="testimonial-card__quote">&ldquo;Finally, one tool that does chat, images, video, AND code. The credit system is fair and the free tier is generous enough to get real work done.&rdquo;</p>
+              <div className="testimonial-card__author">
+                <div className="testimonial-card__avatar">JT</div>
+                <div>
+                  <span className="testimonial-card__name">James T.</span>
+                  <span className="testimonial-card__role">Full-Stack Developer</span>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -454,6 +545,7 @@ export default function HomePage() {
           <div className="pricing-section__header">
             <span className="section-label">Simple Pricing</span>
             <h2 className="section-title">Start Free. Scale As You Grow.</h2>
+            <p className="pricing-section__subtitle">200 free credits = ~100 chat messages, ~20 images, ~5 videos, or ~3 songs</p>
           </div>
           <div className="pricing-grid pricing-grid--3">
             <div className="pricing-card">
@@ -461,14 +553,14 @@ export default function HomePage() {
               <div className="pricing-card__price">$0<span>/month</span></div>
               <ul className="pricing-card__features">
                 <li>&#x2713; 200 credits per month</li>
-                <li>&#x2713; Access to all AI tools</li>
+                <li>&#x2713; Access to all 15 AI tools</li>
                 <li>&#x2713; All 4 AI models</li>
+                <li>&#x2713; Basic AI routing</li>
                 <li>&#x2713; 1 GB Drive storage</li>
-                <li>&#x2713; Smart AI routing</li>
                 <li>&#x2713; Community support</li>
                 <li>&#x2713; No credit card needed</li>
               </ul>
-              <Link href="/chat" className="pricing-card__btn">Get Started</Link>
+              <Link href="/chat" className="pricing-card__btn">Get Started Free</Link>
             </div>
             <div className="pricing-card pricing-card--featured">
               <div className="pricing-card__badge">Most Popular</div>
@@ -476,12 +568,12 @@ export default function HomePage() {
               <div className="pricing-card__price">$29<span>/month</span></div>
               <ul className="pricing-card__features">
                 <li>&#x2713; 30,000 credits/month</li>
-                <li>&#x2713; All premium AI models</li>
-                <li>&#x2713; Smart AI routing</li>
-                <li>&#x2713; Priority support</li>
+                <li>&#x2713; Advanced smart routing</li>
+                <li>&#x2713; Priority model access</li>
                 <li>&#x2713; Developer API access</li>
+                <li>&#x2713; Custom AI agents</li>
                 <li>&#x2713; 100 GB Drive storage</li>
-                <li>&#x2713; Custom agents</li>
+                <li>&#x2713; Priority support</li>
               </ul>
               <Link href="/chat" className="pricing-card__btn pricing-card__btn--gold">Start Pro Trial</Link>
             </div>
@@ -492,10 +584,10 @@ export default function HomePage() {
                 <li>&#x2713; Unlimited credits</li>
                 <li>&#x2713; Everything in Pro</li>
                 <li>&#x2713; Single sign-on (SSO)</li>
-                <li>&#x2713; Dedicated support</li>
-                <li>&#x2713; 500 GB Drive storage</li>
-                <li>&#x2713; SLA guarantee</li>
-                <li>&#x2713; Team collaboration</li>
+                <li>&#x2713; Dedicated account manager</li>
+                <li>&#x2713; 500 GB+ Drive storage</li>
+                <li>&#x2713; SLA guarantee (99.9%)</li>
+                <li>&#x2713; Team collaboration tools</li>
               </ul>
               <Link href="/info?tab=contact" className="pricing-card__btn">Contact Sales</Link>
             </div>
@@ -539,6 +631,11 @@ export default function HomePage() {
               <polyline points="12 5 19 12 12 19" />
             </svg>
           </Link>
+          <div className="cta-section__trust">
+            <span className="cta-section__trust-item">🔒 Your data stays private</span>
+            <span className="cta-section__trust-item">⚡ No credit card required</span>
+            <span className="cta-section__trust-item">✨ Cancel anytime</span>
+          </div>
         </section>
 
         {/* ── Footer ── */}
