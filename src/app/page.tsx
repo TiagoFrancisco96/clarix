@@ -64,7 +64,7 @@ function useScrollReveal() {
   return ref;
 }
 
-/* ── AI Engines — shown in marquee as Clarix's own specialized engines ── */
+/* ── AI Engines ── */
 const AI_ENGINES = [
   { name: '⚡ Speed Engine', desc: 'Lightning-fast responses' },
   { name: '✍️ Writer Engine', desc: 'Best for creative writing' },
@@ -103,30 +103,122 @@ const HERO_TOOLS = [
 /* ── FAQ Data ── */
 const FAQS = [
   {
-    q: 'How does Clarix pick the best engine for my task?',
-    a: 'Clarix automatically analyzes what you\'re asking and routes your request to the engine that\'s best at that kind of task — whether it\'s writing, coding, research, or creative work. You never have to think about which engine to use. It just works.',
+    q: 'How does Clarix know what I need?',
+    a: 'You just type what you want in plain English. Clarix reads your request and automatically picks the best engine for the job. Whether you\'re writing copy, building a pitch deck, or generating a video, it just works.',
   },
   {
-    q: 'Is my data private and secure?',
-    a: 'Absolutely. Your data is never shared with third parties or used to train AI models. Everything is encrypted in transit and at rest with strict access controls. We\'re built for trust.',
+    q: 'Is my data private?',
+    a: 'Yes. Your data is encrypted, never shared with third parties, and never used to train AI models. We take privacy seriously because your business ideas deserve protection.',
   },
   {
-    q: 'Do I need to know anything about AI to use this?',
-    a: 'Not at all. Just type what you need in plain English — like "write me a blog post" or "make a presentation about dogs" — and Clarix handles everything. No prompting skills required.',
+    q: 'Do I need to be technical to use this?',
+    a: 'Not at all. If you can type "write me a blog post" or "make a presentation about our product launch", you\'re good to go. No AI expertise needed.',
   },
   {
-    q: 'How does the credit system work?',
-    a: 'You get 200 free credits every month — enough for about 100 chat messages, 20 images, or 5 videos. Each task uses a few credits based on complexity. Need more? Upgrade to Pro for 30,000 credits/mo. Credits never expire.',
+    q: 'How do credits work?',
+    a: 'You get 200 free credits every month (or 30,000 on Pro). Monthly credits reset each billing cycle, so use them while you have them. If you need more, you can top up anytime and those credits never expire.',
   },
   {
     q: 'Can I cancel anytime?',
-    a: 'Yes, instantly. There are no contracts, no cancellation fees, and no hidden charges. You stay on the free plan if you downgrade. We keep things simple because we believe the product should earn your trust, not a contract.',
+    a: 'Yes, instantly. No contracts, no cancellation fees, no hidden charges. If you downgrade, you keep the free plan. Simple as that.',
   },
   {
-    q: 'Why Clarix instead of using multiple AI tools?',
-    a: 'Instead of juggling separate apps and subscriptions for chat, images, video, music, and code, Clarix gives you all 15 tools in one workspace with one subscription. Our intelligent routing always picks the best engine for each task. One login, one place for everything.',
+    q: 'Why Clarix instead of a bunch of different AI tools?',
+    a: 'Because juggling separate apps for chat, images, video, music, and docs is a pain. Clarix puts everything in one place with one subscription. You save time, money, and headaches.',
   },
 ];
+
+/* ── Credit top-up tiers ── */
+const TOPUP_TIERS = [
+  { credits: 2500,   price: 5,   rate: 0.0020 },
+  { credits: 5000,   price: 9,   rate: 0.0018 },
+  { credits: 10000,  price: 15,  rate: 0.0015 },
+  { credits: 25000,  price: 35,  rate: 0.0014 },
+  { credits: 50000,  price: 59,  rate: 0.00118 },
+  { credits: 100000, price: 99,  rate: 0.00099 },
+];
+const BASE_RATE = TOPUP_TIERS[0].rate; // $0.002 per credit
+
+/* ── Top-Up Slider Component ── */
+function TopUpSlider() {
+  const [tierIdx, setTierIdx] = useState(2); // default to 10k
+  const [displayCredits, setDisplayCredits] = useState(TOPUP_TIERS[2].credits);
+  const [displayPrice, setDisplayPrice] = useState(TOPUP_TIERS[2].price);
+  const animRef = useRef<number>(0);
+
+  const tier = TOPUP_TIERS[tierIdx];
+  const savings = Math.round((1 - tier.rate / BASE_RATE) * 100);
+
+  // Animate credit counter on tier change
+  useEffect(() => {
+    const target = tier.credits;
+    const targetPrice = tier.price;
+    const startCredits = displayCredits;
+    const startPrice = displayPrice;
+    const dur = 400;
+    const start = performance.now();
+
+    if (animRef.current) cancelAnimationFrame(animRef.current);
+
+    const tick = (now: number) => {
+      const t = Math.min((now - start) / dur, 1);
+      const ease = 1 - Math.pow(1 - t, 3);
+      setDisplayCredits(Math.round(startCredits + (target - startCredits) * ease));
+      setDisplayPrice(Math.round(startPrice + (targetPrice - startPrice) * ease));
+      if (t < 1) animRef.current = requestAnimationFrame(tick);
+    };
+    animRef.current = requestAnimationFrame(tick);
+    return () => { if (animRef.current) cancelAnimationFrame(animRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tierIdx]);
+
+  return (
+    <div className="topup-section">
+      <h3 className="topup-section__title">Need extra credits? Slide to pick.</h3>
+      <p className="topup-section__desc">Top-up credits never expire. Available to Free &amp; Pro users.</p>
+
+      <div className="topup-slider">
+        <div className="topup-slider__display">
+          <div className="topup-slider__credits">
+            <span className="topup-slider__count">{displayCredits.toLocaleString()}</span>
+            <span className="topup-slider__label">credits</span>
+          </div>
+          <div className="topup-slider__price-block">
+            <span className="topup-slider__price">${displayPrice}</span>
+            {savings > 0 && (
+              <span className="topup-slider__save">Save {savings}%</span>
+            )}
+          </div>
+        </div>
+
+        <div className="topup-slider__track-wrap">
+          <input
+            type="range"
+            className="topup-slider__range"
+            min={0}
+            max={TOPUP_TIERS.length - 1}
+            step={1}
+            value={tierIdx}
+            onChange={(e) => setTierIdx(Number(e.target.value))}
+          />
+          <div className="topup-slider__ticks">
+            {TOPUP_TIERS.map((t, i) => (
+              <button
+                key={i}
+                className={`topup-slider__tick ${i === tierIdx ? 'topup-slider__tick--active' : ''}`}
+                onClick={() => setTierIdx(i)}
+              >
+                {t.credits >= 1000 ? `${t.credits / 1000}k` : t.credits}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <p className="topup-section__note">Monthly plan credits reset each billing cycle. Top-up credits stay until you use them.</p>
+    </div>
+  );
+}
 
 /* ── Main Homepage ── */
 export default function HomePage() {
@@ -243,11 +335,23 @@ export default function HomePage() {
   }, []);
 
   /* ── Voice Dictation with Web Audio API Waveform ── */
+  const intentionalStopRef = useRef(false);
+
   const startDictation = useCallback(async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const W = window as any;
     const SpeechRecognitionAPI = W.SpeechRecognition || W.webkitSpeechRecognition;
     if (!SpeechRecognitionAPI) return;
+
+    intentionalStopRef.current = false;
+
+    // Get microphone FIRST to prevent conflicts with SpeechRecognition
+    let stream: MediaStream | null = null;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      // Mic denied — fall through, we'll use fallback waveform
+    }
 
     setIsListening(true);
 
@@ -267,41 +371,61 @@ export default function HomePage() {
         return base + (base ? ' ' : '') + transcript;
       });
     };
-    recognition.onend = () => stopDictation();
-    recognition.onerror = () => stopDictation();
+    // Auto-restart on end (browsers fire onend frequently even with continuous:true)
+    recognition.onend = () => {
+      if (!intentionalStopRef.current) {
+        try {
+          recognition.start();
+        } catch {
+          // Already running or disposed
+        }
+      }
+    };
+    recognition.onerror = (e: any) => {
+      // Only stop on fatal errors, not transient ones
+      if (e.error === 'not-allowed' || e.error === 'service-not-available') {
+        intentionalStopRef.current = true;
+        stopDictation();
+      }
+    };
     recognitionRef.current = recognition;
     recognition.start();
 
-    // Start Web Audio API for waveform visualization
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      audioStreamRef.current = stream;
-      const audioCtx = new AudioContext();
-      audioContextRef.current = audioCtx;
-      const source = audioCtx.createMediaStreamSource(stream);
-      const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 128;
-      analyser.smoothingTimeConstant = 0.7;
-      source.connect(analyser);
-      analyserRef.current = analyser;
+    // Start Web Audio API waveform visualization
+    if (stream) {
+      try {
+        audioStreamRef.current = stream;
+        const audioCtx = new AudioContext();
+        audioContextRef.current = audioCtx;
+        const source = audioCtx.createMediaStreamSource(stream);
+        const analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 128;
+        analyser.smoothingTimeConstant = 0.7;
+        source.connect(analyser);
+        analyserRef.current = analyser;
 
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
-      const visualize = () => {
-        analyser.getByteFrequencyData(dataArray);
-        const bars = 32;
-        const step = Math.floor(dataArray.length / bars);
-        const newWaves: number[] = [];
-        for (let i = 0; i < bars; i++) {
-          const val = dataArray[i * step] || 0;
-          const scaled = Math.max(2, (val / 255) * 40);
-          newWaves.push(scaled);
-        }
-        setVoiceWaves(newWaves);
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        const visualize = () => {
+          analyser.getByteFrequencyData(dataArray);
+          const bars = 32;
+          const step = Math.floor(dataArray.length / bars);
+          const newWaves: number[] = [];
+          for (let i = 0; i < bars; i++) {
+            const val = dataArray[i * step] || 0;
+            const scaled = Math.max(2, (val / 255) * 40);
+            newWaves.push(scaled);
+          }
+          setVoiceWaves(newWaves);
+          animFrameRef.current = requestAnimationFrame(visualize);
+        };
         animFrameRef.current = requestAnimationFrame(visualize);
-      };
-      animFrameRef.current = requestAnimationFrame(visualize);
-    } catch {
-      // Microphone denied: fall back to CSS pulsing animation
+      } catch {
+        // Fallback
+      }
+    }
+
+    // If no stream, use CSS pulse fallback
+    if (!stream) {
       const pulseFallback = () => {
         setVoiceWaves(prev => prev.map(() => 2 + Math.random() * 20));
         animFrameRef.current = requestAnimationFrame(pulseFallback);
@@ -311,8 +435,9 @@ export default function HomePage() {
   }, []);
 
   const stopDictation = useCallback(() => {
+    intentionalStopRef.current = true;
     setIsListening(false);
-    recognitionRef.current?.stop();
+    try { recognitionRef.current?.stop(); } catch { /* already stopped */ }
     recognitionRef.current = null;
 
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
@@ -329,6 +454,7 @@ export default function HomePage() {
   }, []);
 
   const cancelDictation = useCallback(() => {
+    // Cancel discards any text captured during this session
     stopDictation();
   }, [stopDictation]);
 
@@ -401,13 +527,13 @@ export default function HomePage() {
           </div>
 
           <h1 className="hero__title">
-            <span className="hero__title-line">Create anything.</span>
-            <span className="hero__title-line hero__title-gradient">Research everything.</span>
+            <span className="hero__title-line">Think it.</span>
+            <span className="hero__title-line hero__title-gradient">Clarix it.</span>
           </h1>
 
           <p className="hero__desc">
-            15 AI tools in one workspace &mdash; images, videos, music, docs, code, and more.
-            Built from the ground up by Clarix, for you.
+            One workspace for every idea. Write, design, code, research, and create.
+            Powered by intelligent engines that adapt to what you need.
           </p>
 
           {/* ── Prompt Bar (toolbar style) ── */}
@@ -556,8 +682,8 @@ export default function HomePage() {
         {/* ── Engines Ticker ── */}
         <section className="models-section reveal" id="models" ref={modelsRef as React.RefObject<HTMLElement>}>
           <div className="models-section__header">
-            <span className="section-label">Why We&apos;re Different</span>
-            <h2 className="section-title">4 specialized engines, working together &mdash; not against each other.</h2>
+            <span className="section-label">Built for your business</span>
+            <h2 className="section-title">Multiple engines, one workspace. Always the right tool for the job.</h2>
           </div>
           <div className="models-marquee">
             <div className="models-marquee__track">
@@ -577,29 +703,29 @@ export default function HomePage() {
         <section className="how-section reveal" ref={howRef as React.RefObject<HTMLElement>}>
           <div className="how-section__header">
             <span className="section-label">Effortless by Design</span>
-            <h2 className="section-title">From idea to result in 3 steps</h2>
+            <h2 className="section-title">From idea to finished result. Here&apos;s how it works.</h2>
           </div>
           <div className="how-steps">
             <div className="how-step">
               <div className="how-step__number">1</div>
-              <h3 className="how-step__title">Describe what you need</h3>
-              <p className="how-step__desc">Type in plain English &mdash; &ldquo;design a logo,&rdquo; &ldquo;write a pitch deck,&rdquo; &ldquo;compose a beat.&rdquo; No AI expertise required.</p>
+              <h3 className="how-step__title">Tell us what you need</h3>
+              <p className="how-step__desc">Type it like you&apos;d tell a colleague. &ldquo;Design a logo for my coffee shop,&rdquo; &ldquo;write a pitch deck,&rdquo; &ldquo;make a promo video.&rdquo; No jargon needed.</p>
             </div>
             <div className="how-step__connector">
               <svg width="40" height="2" viewBox="0 0 40 2"><line x1="0" y1="1" x2="40" y2="1" stroke="var(--accent-gold)" strokeWidth="2" strokeDasharray="4 4" opacity="0.4" /></svg>
             </div>
             <div className="how-step">
               <div className="how-step__number">2</div>
-              <h3 className="how-step__title">We pick the best engine</h3>
-              <p className="how-step__desc">Clarix automatically routes to the ideal engine for your task &mdash; Speed, Writer, Pro, or Research. You get the best result every time, without lifting a finger.</p>
+              <h3 className="how-step__title">Clarix handles the rest</h3>
+              <p className="how-step__desc">Behind the scenes, Clarix picks the right engine for your task. You don&apos;t need to choose anything. Just sit back.</p>
             </div>
             <div className="how-step__connector">
               <svg width="40" height="2" viewBox="0 0 40 2"><line x1="0" y1="1" x2="40" y2="1" stroke="var(--accent-gold)" strokeWidth="2" strokeDasharray="4 4" opacity="0.4" /></svg>
             </div>
             <div className="how-step">
               <div className="how-step__number">3</div>
-              <h3 className="how-step__title">Get polished results</h3>
-              <p className="how-step__desc">Text, images, videos, music, slides &mdash; ready to use. No switching tabs, no extra logins, no wasted time.</p>
+              <h3 className="how-step__title">Use it right away</h3>
+              <p className="how-step__desc">Your content is ready. Download it, share it, or keep building. No switching tabs, no extra logins, no wasted time.</p>
             </div>
           </div>
         </section>
@@ -609,8 +735,8 @@ export default function HomePage() {
         {/* ── Tool Grid ── */}
         <section className="tools-section reveal" id="features" ref={toolsRef as React.RefObject<HTMLElement>}>
           <div className="tools-section__header">
-            <span className="section-label">Everything You Need</span>
-            <h2 className="section-title">Stop switching tabs. Everything lives here.</h2>
+            <span className="section-label">Your Creative Toolkit</span>
+            <h2 className="section-title">Everything your business needs. All in one place.</h2>
           </div>
           <div className="tools-grid">
             {TOOLS.map((tool, i) => (
@@ -644,11 +770,11 @@ export default function HomePage() {
             <div className="feature-card__glow" />
             <div className="feature-card__content">
               <span className="feature-card__label">Smart Engine Routing</span>
-              <h3 className="feature-card__title">The best engine for every task &mdash; chosen for you, automatically</h3>
+              <h3 className="feature-card__title">You type. We figure out the best way to do it.</h3>
               <p className="feature-card__desc">
-                Stop guessing which tool to use. Clarix analyzes your request and routes it
-                to whichever engine is best at that kind of work &mdash; writing, coding,
-                research, or quick answers. You just type. We handle the rest.
+                Stop guessing which tool to use. Clarix reads your request and automatically
+                picks whichever engine is best for the job. Writing, coding,
+                research, quick answers. You focus on your business. We handle the AI.
               </p>
               <Link href="/chat" className="feature-card__cta">
                 See it in action
@@ -682,8 +808,8 @@ export default function HomePage() {
         <section className="pricing-section reveal" id="pricing" ref={pricingRef as React.RefObject<HTMLElement>}>
           <div className="pricing-section__header">
             <span className="section-label">Simple Pricing</span>
-            <h2 className="section-title">Start free. Upgrade when you need more.</h2>
-            <p className="pricing-section__subtitle">200 free credits = ~100 chat messages, ~20 images, ~5 videos, or ~3 songs</p>
+            <h2 className="section-title">Start free. Scale when you&apos;re ready.</h2>
+            <p className="pricing-section__subtitle">200 free credits = ~100 chats, ~20 images, ~5 videos, or ~3 songs</p>
           </div>
           <div className="pricing-grid pricing-grid--2">
             <div className="pricing-card">
@@ -691,7 +817,7 @@ export default function HomePage() {
               <div className="pricing-card__price">$0<span>/month</span></div>
               <ul className="pricing-card__features">
                 <li>&#x2713; 200 credits per month</li>
-                <li>&#x2713; All 15 AI tools</li>
+                <li>&#x2713; Access to every tool</li>
                 <li>&#x2713; Smart engine routing</li>
                 <li>&#x2713; Custom AI agents</li>
                 <li>&#x2713; 1 GB Drive storage</li>
@@ -705,7 +831,7 @@ export default function HomePage() {
               <div className="pricing-card__price">$29<span>/month</span></div>
               <ul className="pricing-card__features">
                 <li>&#x2713; 30,000 credits/month</li>
-                <li>&#x2713; All 15 AI tools</li>
+                <li>&#x2713; Access to every tool</li>
                 <li>&#x2713; Smart engine routing</li>
                 <li>&#x2713; Priority processing</li>
                 <li>&#x2713; Custom AI agents</li>
@@ -716,34 +842,8 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Top-up packs */}
-          <div className="topup-section">
-            <h3 className="topup-section__title">Need more credits? Top up anytime.</h3>
-            <p className="topup-section__desc">Credits never expire. Available to Free &amp; Pro users.</p>
-            <div className="topup-grid">
-              <div className="topup-card">
-                <span className="topup-card__credits">2,500 credits</span>
-                <span className="topup-card__price">$5</span>
-              </div>
-              <div className="topup-card">
-                <span className="topup-card__credits">10,000 credits</span>
-                <span className="topup-card__price">$15</span>
-                <span className="topup-card__save">Save 25%</span>
-              </div>
-              <div className="topup-card topup-card--popular">
-                <span className="topup-card__badge">Best Value</span>
-                <span className="topup-card__credits">50,000 credits</span>
-                <span className="topup-card__price">$59</span>
-                <span className="topup-card__save">Save 41%</span>
-              </div>
-              <div className="topup-card">
-                <span className="topup-card__credits">100,000 credits</span>
-                <span className="topup-card__price">$99</span>
-                <span className="topup-card__save">Save 50%</span>
-              </div>
-            </div>
-            <p className="topup-section__note">Pro subscribers get the best value at 30,000 credits/mo included in their plan.</p>
-          </div>
+          {/* Top-up slider */}
+          <TopUpSlider />
         </section>
 
         {/* ── FAQ ── */}
@@ -774,8 +874,8 @@ export default function HomePage() {
         {/* ── CTA ── */}
         <section className="cta-section reveal" ref={ctaRef as React.RefObject<HTMLElement>}>
           <div className="cta-section__glow" />
-          <h2 className="cta-section__title">Ready to try it? It&apos;s free.</h2>
-          <p className="cta-section__desc">Start with 200 free credits &mdash; no credit card, no commitment.</p>
+          <h2 className="cta-section__title">Ready to build something? It&apos;s free to start.</h2>
+          <p className="cta-section__desc">200 free credits waiting for you. No credit card, no strings attached.</p>
           <Link href="/chat" className="cta-section__btn">
             <span>Start My Free Workspace</span>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -784,9 +884,9 @@ export default function HomePage() {
             </svg>
           </Link>
           <div className="cta-section__trust">
-            <span className="cta-section__trust-item">🔒 Your data stays private &mdash; never used for training</span>
-            <span className="cta-section__trust-item">⚡ No credit card required</span>
-            <span className="cta-section__trust-item">✨ Cancel anytime, keep your files</span>
+            <span className="cta-section__trust-item">Your data stays private, always</span>
+            <span className="cta-section__trust-item">No credit card required</span>
+            <span className="cta-section__trust-item">Cancel anytime, keep your files</span>
           </div>
         </section>
 
