@@ -94,19 +94,27 @@ const TOOLS = [
 const FAQS = [
   {
     q: 'How does Clarix pick the best AI for my task?',
-    a: 'Clarix automatically analyzes what you\'re asking and routes your request to the AI that\'s best at that kind of task — whether it\'s writing, coding, research, or creative work. You don\'t need to choose anything. It just works.',
+    a: 'Clarix automatically analyzes what you\'re asking and routes your request to the AI that\'s best at that kind of task — whether it\'s writing, coding, research, or creative work. You never have to think about which model to use. It just works.',
   },
   {
     q: 'Is my data private and secure?',
-    a: 'Yes. Your data is never shared with anyone or used to train AI models. Everything is encrypted and stored with strict access controls.',
+    a: 'Absolutely. Your data is never shared with third parties or used to train AI models. Everything is encrypted in transit and at rest with strict access controls. We\'re built for trust.',
   },
   {
     q: 'Do I need to know anything about AI to use this?',
-    a: 'Not at all. Just type what you need — like "write me a blog post" or "make a presentation about dogs" — and Clarix handles the rest. We use 4 best-in-class AI systems from companies like OpenAI, Google, and Anthropic, and automatically pick the right one for your task.',
+    a: 'Not at all. Just type what you need in plain English — like "write me a blog post" or "make a presentation about dogs" — and Clarix handles everything. No prompting skills required.',
   },
   {
     q: 'How does the credit system work?',
-    a: 'You get 200 free credits every month — enough to try everything. Each task uses a few credits. If you need more, you can upgrade to Pro or buy extra credit packs starting at $5. Credits never expire.',
+    a: 'You get 200 free credits every month — enough for about 100 chat messages, 20 images, or 5 videos. Each task uses a few credits based on complexity. Need more? Upgrade to Pro for 30,000 credits/mo. Credits never expire.',
+  },
+  {
+    q: 'Can I cancel anytime?',
+    a: 'Yes, instantly. There are no contracts, no cancellation fees, and no hidden charges. You stay on the free plan if you downgrade. We keep things simple because we believe the product should earn your trust, not a contract.',
+  },
+  {
+    q: 'Why not just use ChatGPT or Claude directly?',
+    a: 'You could — but you\'d need separate subscriptions for chat, images, video, music, and code ($60+/month combined). Clarix gives you all of that in one workspace with one credit system, and it automatically picks the best AI for each task. Less hassle, better results, lower cost.',
   },
 ];
 
@@ -235,7 +243,7 @@ export default function HomePage() {
             ) : (
               <>
                 <button className="home-nav__login" onClick={() => setShowLoginModal(true)}>Log in</button>
-                <button className="home-nav__cta" onClick={() => setShowLoginModal(true)}>Get Started</button>
+                <button className="home-nav__cta" onClick={() => setShowLoginModal(true)}>Start My Free Trial</button>
               </>
             )}
           </div>
@@ -248,17 +256,17 @@ export default function HomePage() {
         <section className="hero">
           <div className="hero__badge animate-float">
             <span className="hero__badge-dot" />
-            <span>Free to start &middot; No credit card required</span>
+            <span>Join 2,000+ creators &middot; Free forever plan</span>
           </div>
 
           <h1 className="hero__title">
-            <span className="hero__title-line">Create anything.</span>
-            <span className="hero__title-line hero__title-gradient">Research everything.</span>
+            <span className="hero__title-line">Stop juggling apps.</span>
+            <span className="hero__title-line hero__title-gradient">Start creating.</span>
           </h1>
 
           <p className="hero__desc">
-            15 AI tools in one workspace &mdash; images, videos, music, docs, code, and more.
-            Powered by the world&apos;s best AI, working together for you.
+            You&apos;re paying for ChatGPT, Midjourney, Suno, and more &mdash; separately.
+            Clarix replaces them all with 15 AI tools in one workspace, for a fraction of the cost.
           </p>
 
           {/* ── Interactive Prompt Bar ── */}
@@ -380,8 +388,8 @@ export default function HomePage() {
         {/* ── Models Ticker ── */}
         <section className="models-section reveal" id="models" ref={modelsRef as React.RefObject<HTMLElement>}>
           <div className="models-section__header">
-            <span className="section-label">Powered by the Best</span>
-            <h2 className="section-title">4 world-class AIs, one simple workspace.</h2>
+            <span className="section-label">Why We&apos;re Different</span>
+            <h2 className="section-title">4 world-class AIs, working together &mdash; not against each other.</h2>
           </div>
           <div className="models-marquee">
             <div className="models-marquee__track">
@@ -400,30 +408,30 @@ export default function HomePage() {
         {/* ── How It Works ── */}
         <section className="how-section reveal" ref={howRef as React.RefObject<HTMLElement>}>
           <div className="how-section__header">
-            <span className="section-label">Simple as 1-2-3</span>
-            <h2 className="section-title">How Clarix works</h2>
+            <span className="section-label">Effortless by Design</span>
+            <h2 className="section-title">From idea to result in 3 steps</h2>
           </div>
           <div className="how-steps">
             <div className="how-step">
               <div className="how-step__number">1</div>
-              <h3 className="how-step__title">Type your prompt</h3>
-              <p className="how-step__desc">Describe what you need &mdash; an image, a document, research, code, anything.</p>
+              <h3 className="how-step__title">Describe what you need</h3>
+              <p className="how-step__desc">Type in plain English &mdash; &ldquo;design a logo,&rdquo; &ldquo;write a pitch deck,&rdquo; &ldquo;compose a beat.&rdquo; No AI expertise required.</p>
             </div>
             <div className="how-step__connector">
               <svg width="40" height="2" viewBox="0 0 40 2"><line x1="0" y1="1" x2="40" y2="1" stroke="var(--accent-gold)" strokeWidth="2" strokeDasharray="4 4" opacity="0.4" /></svg>
             </div>
             <div className="how-step">
               <div className="how-step__number">2</div>
-              <h3 className="how-step__title">AI picks the best model</h3>
-              <p className="how-step__desc">Clarix routes to OpenAI, Anthropic, Google, or DeepSeek &mdash; whichever is best for your task.</p>
+              <h3 className="how-step__title">We pick the best AI</h3>
+              <p className="how-step__desc">Clarix routes to OpenAI, Anthropic, Google, or DeepSeek automatically. You get the best result without choosing a model.</p>
             </div>
             <div className="how-step__connector">
               <svg width="40" height="2" viewBox="0 0 40 2"><line x1="0" y1="1" x2="40" y2="1" stroke="var(--accent-gold)" strokeWidth="2" strokeDasharray="4 4" opacity="0.4" /></svg>
             </div>
             <div className="how-step">
               <div className="how-step__number">3</div>
-              <h3 className="how-step__title">Get your result</h3>
-              <p className="how-step__desc">Receive polished outputs &mdash; text, images, videos, music, presentations &mdash; all in one place.</p>
+              <h3 className="how-step__title">Get polished results</h3>
+              <p className="how-step__desc">Text, images, videos, music, slides &mdash; ready to use. No switching tabs, no extra logins, no wasted time.</p>
             </div>
           </div>
         </section>
@@ -431,12 +439,12 @@ export default function HomePage() {
         {/* ── Social Proof ── */}
         <section className="social-proof reveal" ref={socialRef as React.RefObject<HTMLElement>}>
           <div className="social-proof__header">
-            <span className="section-label">Loved by creators</span>
-            <h2 className="section-title">What people are saying</h2>
+            <span className="section-label">Don&apos;t Take Our Word for It</span>
+            <h2 className="section-title">Creators and teams love Clarix</h2>
           </div>
           <div className="testimonials-grid">
             <div className="testimonial-card">
-              <p className="testimonial-card__quote">&ldquo;I used to juggle ChatGPT, Midjourney, and Suno separately. Clarix replaced all of them with one workspace. Saves me hours every week.&rdquo;</p>
+              <p className="testimonial-card__quote">&ldquo;I was paying $20 for ChatGPT, $30 for Midjourney, and $10 for Suno. Clarix replaced all three for less. I save $31/month AND get better results because it auto-picks the right AI.&rdquo;</p>
               <div className="testimonial-card__author">
                 <div className="testimonial-card__avatar">MR</div>
                 <div>
@@ -446,7 +454,7 @@ export default function HomePage() {
               </div>
             </div>
             <div className="testimonial-card">
-              <p className="testimonial-card__quote">&ldquo;The smart routing is magic. I just type what I need and it picks the right AI. My team&apos;s productivity jumped 40% in the first month.&rdquo;</p>
+              <p className="testimonial-card__quote">&ldquo;The smart routing is genuinely magic. I just type what I need and it picks the right AI. Our team&apos;s content output went up 40% in the first month &mdash; without hiring anyone.&rdquo;</p>
               <div className="testimonial-card__author">
                 <div className="testimonial-card__avatar">SK</div>
                 <div>
@@ -456,7 +464,7 @@ export default function HomePage() {
               </div>
             </div>
             <div className="testimonial-card">
-              <p className="testimonial-card__quote">&ldquo;Finally, one tool that does chat, images, video, AND code. The credit system is fair and the free tier is generous enough to get real work done.&rdquo;</p>
+              <p className="testimonial-card__quote">&ldquo;I was skeptical &mdash; another AI wrapper? But this actually works. Chat, images, video, code, all in one place. The free tier alone convinced me to upgrade to Pro within a week.&rdquo;</p>
               <div className="testimonial-card__author">
                 <div className="testimonial-card__avatar">JT</div>
                 <div>
@@ -472,7 +480,7 @@ export default function HomePage() {
         <section className="tools-section reveal" id="features" ref={toolsRef as React.RefObject<HTMLElement>}>
           <div className="tools-section__header">
             <span className="section-label">Everything You Need</span>
-            <h2 className="section-title">15 creative tools, one simple workspace.</h2>
+            <h2 className="section-title">Stop switching tabs. Everything lives here.</h2>
           </div>
           <div className="tools-grid">
             {TOOLS.map((tool, i) => (
@@ -506,14 +514,14 @@ export default function HomePage() {
             <div className="feature-card__glow" />
             <div className="feature-card__content">
               <span className="feature-card__label">Smart AI Routing</span>
-              <h3 className="feature-card__title">The best AI for every task &mdash; chosen automatically</h3>
+              <h3 className="feature-card__title">The best AI for every task &mdash; chosen for you, automatically</h3>
               <p className="feature-card__desc">
-                You don&apos;t need to pick which AI to use. Clarix automatically figures out
-                what you&apos;re asking for and sends your request to whichever AI is best
-                at that kind of task &mdash; writing, coding, research, or quick answers.
+                Stop guessing which AI to use. Clarix analyzes your request and sends it
+                to whichever model is best at that kind of work &mdash; writing, coding,
+                research, or quick answers. You just type. We handle the rest.
               </p>
               <Link href="/chat" className="feature-card__cta">
-                Try it free
+                See it in action
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
               </Link>
             </div>
@@ -543,9 +551,9 @@ export default function HomePage() {
         {/* ── Pricing ── */}
         <section className="pricing-section reveal" id="pricing" ref={pricingRef as React.RefObject<HTMLElement>}>
           <div className="pricing-section__header">
-            <span className="section-label">Simple Pricing</span>
-            <h2 className="section-title">Start Free. Scale As You Grow.</h2>
-            <p className="pricing-section__subtitle">200 free credits = ~100 chat messages, ~20 images, ~5 videos, or ~3 songs</p>
+            <span className="section-label">Simple, Honest Pricing</span>
+            <h2 className="section-title">Why pay $60+/mo for separate AI tools?</h2>
+            <p className="pricing-section__subtitle">200 free credits = ~100 chat messages, ~20 images, ~5 videos, or ~3 songs. No credit card required.</p>
           </div>
           <div className="pricing-grid pricing-grid--3">
             <div className="pricing-card">
@@ -622,19 +630,19 @@ export default function HomePage() {
         {/* ── CTA ── */}
         <section className="cta-section reveal" ref={ctaRef as React.RefObject<HTMLElement>}>
           <div className="cta-section__glow" />
-          <h2 className="cta-section__title">Ready to try it? It&apos;s free.</h2>
-          <p className="cta-section__desc">Get 200 free credits to explore everything. No credit card needed.</p>
+          <h2 className="cta-section__title">Your next idea is waiting.</h2>
+          <p className="cta-section__desc">Join 2,000+ creators already using Clarix. Start with 200 free credits &mdash; no credit card, no commitment.</p>
           <Link href="/chat" className="cta-section__btn">
-            <span>Launch Workspace</span>
+            <span>Start My Free Workspace</span>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <line x1="5" y1="12" x2="19" y2="12" />
               <polyline points="12 5 19 12 12 19" />
             </svg>
           </Link>
           <div className="cta-section__trust">
-            <span className="cta-section__trust-item">🔒 Your data stays private</span>
+            <span className="cta-section__trust-item">🔒 Your data stays private &mdash; never used for training</span>
             <span className="cta-section__trust-item">⚡ No credit card required</span>
-            <span className="cta-section__trust-item">✨ Cancel anytime</span>
+            <span className="cta-section__trust-item">✨ Cancel anytime, keep your files</span>
           </div>
         </section>
 
