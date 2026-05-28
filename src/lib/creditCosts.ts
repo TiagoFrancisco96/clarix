@@ -234,9 +234,7 @@ export function getToolPricingDetails(tool: string): Record<string, ModelPricing
  */
 export const PLAN_ALLOCATIONS = {
     free: { credits: 200, price: 0, label: 'Free' },
-    plus: { credits: 12_000, price: 25, label: 'Plus' },
-    pro: { credits: 30_000, price: 49, label: 'Pro' },
-    enterprise: { credits: 200_000, price: 249, label: 'Enterprise' },
+    pro: { credits: 30_000, price: 29, label: 'Pro' },
 } as const;
 
 /**

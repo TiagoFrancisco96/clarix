@@ -118,14 +118,40 @@ const FAQS = [
   },
 ];
 
-/* ── Prompt Suggestions ── */
-const PROMPT_SUGGESTIONS = [
-  { label: '✨ Design a logo for my startup', mode: 'create' as const },
-  { label: '📝 Write a blog post about AI trends', mode: 'research' as const },
-  { label: '🎵 Compose a lo-fi study beat', mode: 'create' as const },
-  { label: '📊 Create a pitch deck for investors', mode: 'create' as const },
-  { label: '🔍 Compare React vs Vue for my project', mode: 'research' as const },
-  { label: '🎬 Make a product demo video', mode: 'create' as const },
+/* ── Tool Categories (icon bar below prompt) ── */
+const TOOL_CATEGORIES = [
+  {
+    label: 'Office Suite',
+    tools: [
+      { href: '/slides', icon: '📊', name: 'AI Slides', color: 'var(--tool-fg-slides)', bg: 'var(--tool-slides)', tips: ['Generate full presentations from a prompt', 'Auto-layout with professional themes'] },
+      { href: '/sheets', icon: '📈', name: 'AI Sheets', color: 'var(--tool-fg-sheets)', bg: 'var(--tool-sheets)', tips: ['Analyze data & generate charts', 'Formula suggestions & auto-fill'] },
+      { href: '/docs', icon: '📄', name: 'AI Docs', color: 'var(--tool-fg-docs)', bg: 'var(--tool-docs)', tips: ['Write documents with AI assistance', 'Auto-format, summarize & translate'] },
+    ],
+  },
+  {
+    label: 'Design & Code',
+    tools: [
+      { href: '/designer', icon: '✨', name: 'Design', color: 'var(--tool-fg-designer)', bg: 'var(--tool-designer)', tips: ['Design posters, logos, flyers & more', 'Pro-grade exports, every template is free'] },
+      { href: '/developer', icon: '⚡', name: 'Code', color: 'var(--tool-fg-developer)', bg: 'var(--tool-developer)', tips: ['Write, debug & explain code', 'Supports 50+ programming languages'] },
+    ],
+  },
+  {
+    label: 'Content Creation',
+    tools: [
+      { href: '/chat', icon: '💬', name: 'AI Chat', color: 'var(--tool-fg-chat)', bg: 'var(--tool-chat)', tips: ['Ask anything, get answers instantly', 'Auto-routes to the best AI model'] },
+      { href: '/image', icon: '🎨', name: 'AI Image', color: 'var(--tool-fg-image)', bg: 'var(--tool-image)', tips: ['Turn text prompts into stunning images', 'Multiple styles: realistic, anime, art'] },
+      { href: '/video', icon: '🎬', name: 'AI Video', color: 'var(--tool-fg-video)', bg: 'var(--tool-video)', tips: ['Create videos from text descriptions', 'Powered by top-tier video AI models'] },
+      { href: '/music', icon: '🎵', name: 'AI Music', color: 'var(--tool-fg-music)', bg: 'var(--tool-music)', tips: ['Compose songs & soundtracks', 'Multiple genres, custom duration'] },
+    ],
+  },
+  {
+    label: 'Tools',
+    tools: [
+      { href: '/meeting-notes', icon: '🎤', name: 'Meeting Notes', color: 'var(--tool-fg-meeting)', bg: 'var(--tool-meeting)', tips: ['Transcribe & summarize meetings', 'Extract action items automatically'] },
+      { href: '/search', icon: '🔍', name: 'Deep Search', color: '#14b8a6', bg: '#1e3331', tips: ['Research any topic in depth', 'Aggregates sources with citations'] },
+      { href: '/agents', icon: '🤖', name: 'AI Agents', color: 'var(--tool-fg-all-agents)', bg: 'var(--tool-all-agents)', tips: ['Build custom AI workflows', 'Automate repetitive tasks'] },
+    ],
+  },
 ];
 
 /* ── Main Homepage ── */
@@ -141,7 +167,13 @@ export default function HomePage() {
   const [loginEmail, setLoginEmail] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const [hoveredTool, setHoveredTool] = useState<string | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
   const router = useRouter();
   const { data: session } = useSession();
 
@@ -202,10 +234,6 @@ export default function HomePage() {
     } else {
       setShowLoginModal(true);
     }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') handleSubmit();
   };
 
   const scrollToSection = useCallback((id: string) => {
@@ -269,25 +297,25 @@ export default function HomePage() {
             Powered by the world&apos;s best AI, working together for you.
           </p>
 
-          {/* ── Interactive Prompt Bar ── */}
+          {/* ── Interactive Prompt Bar (Genspark-style) ── */}
           <div className="prompt-container">
             <div className="prompt-bar">
               <div className="prompt-bar__glow" />
               <div className="prompt-bar__inner">
-                <div className="prompt-bar__icon">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                  </svg>
-                </div>
+                {/* Top: Textarea */}
                 <div className="prompt-bar__text">
-                  <input
+                  <textarea
                     ref={inputRef}
-                    type="text"
                     className="prompt-bar__input"
                     value={promptValue}
+                    rows={1}
                     onChange={(e) => {
                       const val = e.target.value;
                       setPromptValue(val);
+                      // Auto-resize textarea
+                      const el = e.target;
+                      el.style.height = 'auto';
+                      el.style.height = Math.min(el.scrollHeight, 120) + 'px';
 
                       // ── Auto-detect mode from prompt intent ──
                       const lower = val.toLowerCase().trim();
@@ -309,19 +337,13 @@ export default function HomePage() {
                           /\b(meaning of|definition of|history of|origin of)\b/,
                           /\b(help me understand|what does|how does|how do)\b/,
                         ];
-
                         const isCreate = createPatterns.some(p => p.test(lower));
                         const isResearch = researchPatterns.some(p => p.test(lower));
-
-                        if (isCreate && !isResearch) {
-                          setActiveMode('create');
-                        } else if (isResearch && !isCreate) {
-                          setActiveMode('research');
-                        }
-                        // If both match or neither matches, keep current mode
+                        if (isCreate && !isResearch) setActiveMode('create');
+                        else if (isResearch && !isCreate) setActiveMode('research');
                       }
                     }}
-                    onKeyDown={handleKeyDown}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); } }}
                     placeholder={promptValue ? '' : undefined}
                   />
                   {!promptValue && (
@@ -331,57 +353,135 @@ export default function HomePage() {
                     </div>
                   )}
                 </div>
-                <div className="prompt-bar__actions">
-                  <button
-                    className={`prompt-bar__mode ${activeMode === 'research' ? 'prompt-bar__mode--active' : ''}`}
-                    onClick={() => setActiveMode('research')}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-                    Research
-                  </button>
-                  <button
-                    className={`prompt-bar__mode ${activeMode === 'create' ? 'prompt-bar__mode--active' : ''}`}
-                    onClick={() => setActiveMode('create')}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
-                    Create
-                  </button>
-                  <button className="prompt-bar__send" title="Go" onClick={handleSubmit}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="5" y1="12" x2="19" y2="12" />
-                      <polyline points="12 5 19 12 12 19" />
-                    </svg>
-                  </button>
+
+                {/* Attached file chip */}
+                {attachedFile && (
+                  <div className="prompt-bar__file-chip">
+                    <span>📎 {attachedFile.name}</span>
+                    <button onClick={() => setAttachedFile(null)} title="Remove file">&times;</button>
+                  </div>
+                )}
+
+                {/* Bottom toolbar */}
+                <div className="prompt-bar__toolbar">
+                  <div className="prompt-bar__toolbar-left">
+                    <button
+                      className="prompt-bar__tool-btn"
+                      title="Attach file"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      className="sr-only"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) setAttachedFile(f);
+                        e.target.value = '';
+                      }}
+                    />
+                    <span className="prompt-bar__model-chip">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
+                      Auto
+                    </span>
+                  </div>
+                  <div className="prompt-bar__toolbar-right">
+                    <button
+                      className={`prompt-bar__tool-btn ${isListening ? 'prompt-bar__tool-btn--active' : ''}`}
+                      title="Voice input"
+                      onClick={() => {
+                        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) return;
+                        if (isListening) {
+                          recognitionRef.current?.stop();
+                          setIsListening(false);
+                          return;
+                        }
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        const W = window as any;
+                        const SpeechRecognitionAPI = W.SpeechRecognition || W.webkitSpeechRecognition;
+                        if (!SpeechRecognitionAPI) return;
+                        const recognition = new SpeechRecognitionAPI();
+                        recognition.continuous = false;
+                        recognition.interimResults = true;
+                        recognition.lang = 'en-US';
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        recognition.onresult = (event: any) => {
+                          let transcript = '';
+                          for (let i = 0; i < event.results.length; i++) {
+                            transcript += event.results[i][0].transcript;
+                          }
+                          setPromptValue(prev => {
+                            const base = prev.replace(/\s*\[listening\.\.\.]\s*$/, '');
+                            return base + (base ? ' ' : '') + transcript;
+                          });
+                        };
+                        recognition.onend = () => setIsListening(false);
+                        recognition.onerror = () => setIsListening(false);
+                        recognitionRef.current = recognition;
+                        recognition.start();
+                        setIsListening(true);
+                      }}
+                    >
+                      {isListening && <span className="prompt-bar__recording-dot" />}
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" y1="19" x2="12" y2="23" /><line x1="8" y1="23" x2="16" y2="23" /></svg>
+                    </button>
+                    <button
+                      className={`prompt-bar__mode ${activeMode === 'research' ? 'prompt-bar__mode--active' : ''}`}
+                      onClick={() => setActiveMode('research')}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+                      Research
+                    </button>
+                    <button
+                      className={`prompt-bar__mode ${activeMode === 'create' ? 'prompt-bar__mode--active' : ''}`}
+                      onClick={() => setActiveMode('create')}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
+                      Create
+                    </button>
+                    <button className="prompt-bar__send" title="Go" onClick={handleSubmit}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                        <polyline points="12 5 19 12 12 19" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-            <p className="prompt-hint">Press <kbd>Enter</kbd> to launch &middot; Mode auto-detects from your prompt</p>
-            <div className="prompt-suggestions">
-              {PROMPT_SUGGESTIONS.map((s, i) => (
-                <button
-                  key={i}
-                  className="prompt-suggestions__chip"
-                  onClick={() => {
-                    setPromptValue(s.label.replace(/^[^\s]+\s/, ''));
-                    setActiveMode(s.mode);
-                    inputRef.current?.focus();
-                  }}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
           </div>
 
-          {/* Powered By */}
-          <div className="hero__powered-by">
-            <span className="hero__powered-by-label">Powered by</span>
-            <div className="hero__powered-by-logos">
-              <span className="hero__provider-badge">OpenAI</span>
-              <span className="hero__provider-badge">Anthropic</span>
-              <span className="hero__provider-badge">Google</span>
-              <span className="hero__provider-badge">DeepSeek</span>
-            </div>
+          {/* ── Tool Icon Bar (Genspark-style) ── */}
+          <div className="tool-icon-bar">
+            {TOOL_CATEGORIES.map((cat, ci) => (
+              <div key={ci} className="tool-icon-bar__group">
+                <span className="tool-icon-bar__label">{cat.label}</span>
+                <div className="tool-icon-bar__icons">
+                  {cat.tools.map((tool) => (
+                    <div
+                      key={tool.href}
+                      className="tool-icon-bar__item"
+                      onMouseEnter={() => setHoveredTool(tool.href)}
+                      onMouseLeave={() => setHoveredTool(null)}
+                    >
+                      <Link href={tool.href} className="tool-icon-bar__link">
+                        <span className="tool-icon-bar__icon" style={{ background: tool.bg, color: tool.color }}>{tool.icon}</span>
+                        <span className="tool-icon-bar__name">{tool.name}</span>
+                      </Link>
+                      {hoveredTool === tool.href && (
+                        <div className="tool-icon-bar__tooltip">
+                          <ul>
+                            {tool.tips.map((tip, ti) => <li key={ti}>{tip}</li>)}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -547,6 +647,39 @@ export default function HomePage() {
               </ul>
               <Link href="/chat" className="pricing-card__btn pricing-card__btn--gold">Start Pro Trial</Link>
             </div>
+          </div>
+
+          {/* Top-up packs */}
+          <div className="topup-section">
+            <h3 className="topup-section__title">Need more credits? Top up anytime.</h3>
+            <p className="topup-section__desc">Credits never expire. Available to Free &amp; Pro users.</p>
+            <div className="topup-grid">
+              <div className="topup-card">
+                <span className="topup-card__credits">2,500 credits</span>
+                <span className="topup-card__price">$5</span>
+                <span className="topup-card__rate">$0.002/credit</span>
+              </div>
+              <div className="topup-card">
+                <span className="topup-card__credits">10,000 credits</span>
+                <span className="topup-card__price">$15</span>
+                <span className="topup-card__rate">$0.0015/credit</span>
+                <span className="topup-card__save">Save 25%</span>
+              </div>
+              <div className="topup-card topup-card--popular">
+                <span className="topup-card__badge">Best Value</span>
+                <span className="topup-card__credits">50,000 credits</span>
+                <span className="topup-card__price">$59</span>
+                <span className="topup-card__rate">$0.00118/credit</span>
+                <span className="topup-card__save">Save 41%</span>
+              </div>
+              <div className="topup-card">
+                <span className="topup-card__credits">100,000 credits</span>
+                <span className="topup-card__price">$99</span>
+                <span className="topup-card__rate">$0.00099/credit</span>
+                <span className="topup-card__save">Save 50%</span>
+              </div>
+            </div>
+            <p className="topup-section__note">Pro subscribers get 30,000 credits/mo at $0.00097/credit &mdash; the lowest rate.</p>
           </div>
         </section>
 
