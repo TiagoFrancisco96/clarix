@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession, signIn } from '@/lib/auth-client';
-import { Plus, Mic, ArrowRight, X, Check, Zap, Search as SearchIcon } from 'lucide-react';
+import { Plus, Mic, ArrowRight, X, Check } from 'lucide-react';
 import './home.css';
 
 // Removed canvas ParticleField
@@ -159,7 +159,7 @@ export default function HomePage() {
   const [phIdx, setPhIdx] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
-  const [promptMode, setPromptMode] = useState<'auto' | 'research' | 'create'>('auto');
+
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [navScrolled, setNavScrolled] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
@@ -533,13 +533,6 @@ export default function HomePage() {
                             e.target.value = '';
                           }}
                         />
-                        <button
-                          className={`prompt-bar__mode-chip ${promptMode === 'auto' ? 'prompt-bar__mode-chip--active' : ''}`}
-                          onClick={() => setPromptMode('auto')}
-                        >
-                          <Zap size={14} />
-                          <span>Auto</span>
-                        </button>
                       </div>
                       <div className="prompt-bar__controls-right">
                         <button
@@ -548,20 +541,6 @@ export default function HomePage() {
                           onClick={startDictation}
                         >
                           <Mic size={18} />
-                        </button>
-                        <button
-                          className={`prompt-bar__mode-chip prompt-bar__mode-chip--research ${promptMode === 'research' ? 'prompt-bar__mode-chip--active' : ''}`}
-                          onClick={() => setPromptMode(promptMode === 'research' ? 'auto' : 'research')}
-                        >
-                          <SearchIcon size={14} />
-                          <span>Research</span>
-                        </button>
-                        <button
-                          className={`prompt-bar__mode-chip prompt-bar__mode-chip--create ${promptMode === 'create' ? 'prompt-bar__mode-chip--active' : ''}`}
-                          onClick={() => setPromptMode(promptMode === 'create' ? 'auto' : 'create')}
-                        >
-                          <Zap size={14} />
-                          <span>Create</span>
                         </button>
                         <button
                           className={`prompt-bar__send-btn ${promptValue.trim() ? 'prompt-bar__send-btn--active' : ''}`}
