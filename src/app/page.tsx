@@ -265,7 +265,42 @@ export default function HomePage() {
                     type="text"
                     className="prompt-bar__input"
                     value={promptValue}
-                    onChange={(e) => setPromptValue(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setPromptValue(val);
+
+                      // ── Auto-detect mode from prompt intent ──
+                      const lower = val.toLowerCase().trim();
+                      if (lower.length > 3) {
+                        const createPatterns = [
+                          /^(create|make|generate|build|design|draw|compose|produce|craft|render)\b/,
+                          /\b(image|picture|photo|illustration|artwork|logo|icon|banner|poster)\b/,
+                          /\b(video|animation|clip|movie|trailer|reel)\b/,
+                          /\b(song|music|beat|soundtrack|melody|audio|jingle)\b/,
+                          /\b(slide|presentation|deck|ppt)\b/,
+                          /\b(website|landing page|ui|mockup|wireframe|app|interface)\b/,
+                          /\b(write me a|draft a|compose a|generate a)\b/,
+                          /\b(ultra realistic|cinematic|4k|hd|photorealistic|anime|pixel art|watercolor|oil painting)\b/,
+                        ];
+                        const researchPatterns = [
+                          /^(what|who|when|where|why|how|is|are|can|does|do|should|which|tell me)\b/,
+                          /\b(explain|summarize|compare|analyze|research|find|search|look up|define)\b/,
+                          /\b(difference between|pros and cons|advantages|disadvantages)\b/,
+                          /\b(meaning of|definition of|history of|origin of)\b/,
+                          /\b(help me understand|what does|how does|how do)\b/,
+                        ];
+
+                        const isCreate = createPatterns.some(p => p.test(lower));
+                        const isResearch = researchPatterns.some(p => p.test(lower));
+
+                        if (isCreate && !isResearch) {
+                          setActiveMode('create');
+                        } else if (isResearch && !isCreate) {
+                          setActiveMode('research');
+                        }
+                        // If both match or neither matches, keep current mode
+                      }
+                    }}
                     onKeyDown={handleKeyDown}
                     placeholder={promptValue ? '' : undefined}
                   />

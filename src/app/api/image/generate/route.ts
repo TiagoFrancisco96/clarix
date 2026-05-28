@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
-import { checkCredits, creditDeniedResponse, getBalance, refundCredits } from '@/lib/creditGuard';
+import { preAuthorize, creditDeniedResponse, getBalance, refundHold, settleFlatRate, type PreAuthResult } from '@/lib/creditGuard';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rateLimit';
 
 // Helper function to generate via Fal.ai (Flux)
@@ -38,7 +38,8 @@ const MODEL_NAMES: Record<string, string> = {
 
 export async function POST(req: NextRequest) {
     let userId = '';
-    let creditCheck: { allowed: boolean; balance: number; cost: number; newBalance?: number } | null = null;
+    let creditHold: PreAuthResult | null = null;
+    const genStartTime = Date.now();
     try {
         /* ── Auth Check ── */
         const headersList = await headers();
@@ -69,13 +70,13 @@ export async function POST(req: NextRequest) {
             }), { status: 429, headers: { 'Content-Type': 'application/json' } });
         }
 
-        /* ── Credit Check ── */
-        creditCheck = await checkCredits(userId, 'image', model || 'flux-schnell');
-        if (!creditCheck.allowed) {
+        /* ── Credit Pre-Authorization ── */
+        creditHold = await preAuthorize(userId, 'image', model || 'flux-schnell');
+        if (!creditHold.allowed) {
             return NextResponse.json({
                 error: 'Insufficient credits',
-                balance: creditCheck.balance,
-                cost: creditCheck.cost,
+                balance: creditHold.balance,
+                cost: creditHold.estimatedCost,
                 upgrade_url: '/settings?tab=subscription',
             }, { status: 402 });
         }
@@ -215,12 +216,23 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Unknown model' }, { status: 400 });
         }
 
+        // Log usage after successful generation
+        const durationMs = Date.now() - genStartTime;
+        const usedModel = model || 'flux-schnell';
+        const providerName = fallback ? 'fal.ai' : (model === 'nano-banana-pro' ? 'Google' : model === 'gpt-image-2' ? 'OpenAI' : model === 'ideogram-v3' ? 'Ideogram' : 'fal.ai');
+        await settleFlatRate(userId, 'image', usedModel, providerName, {
+            estimatedCost: creditHold?.estimatedCost ?? 0,
+            durationMs,
+            fallbackFrom: fallback?.from,
+            status: 'completed',
+        });
+
         return NextResponse.json({ url: imageUrl, fallback });
     } catch (error) {
         console.error('[Image Generation API Error]', error);
         // Refund credits on total failure
-        if (userId) {
-            await refundCredits(userId, creditCheck?.cost || 0, `image:internal_error`);
+        if (userId && creditHold) {
+            await refundHold(userId, creditHold, 'image:internal_error');
         }
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }

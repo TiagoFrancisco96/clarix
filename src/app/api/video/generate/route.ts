@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fal } from '@fal-ai/client';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
-import { checkCredits, creditDeniedResponse, getBalance } from '@/lib/creditGuard';
+import { preAuthorize, creditDeniedResponse, getBalance, refundHold, settleFlatRate } from '@/lib/creditGuard';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rateLimit';
 
 /* ── Display names for notification/fallback logs ── */
@@ -95,6 +95,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
         const userId = session.user.id;
+        const genStartTime = Date.now();
 
         const body = await request.json();
         const { prompt, model, duration, aspectRatio, style } = body;
@@ -127,13 +128,13 @@ export async function POST(request: NextRequest) {
             }), { status: 429, headers: { 'Content-Type': 'application/json' } });
         }
 
-        /* ── Credit Check ── */
-        const creditCheck = await checkCredits(userId, 'video', model);
-        if (!creditCheck.allowed) {
+        /* ── Credit Pre-Authorization ── */
+        const creditHold = await preAuthorize(userId, 'video', model);
+        if (!creditHold.allowed) {
             return NextResponse.json({
                 error: 'Insufficient credits',
-                balance: creditCheck.balance,
-                cost: creditCheck.cost,
+                balance: creditHold.balance,
+                cost: creditHold.estimatedCost,
                 upgrade_url: '/settings?tab=subscription',
             }, { status: 402 });
         }
@@ -157,6 +158,13 @@ export async function POST(request: NextRequest) {
             }
 
             const fallbackRes = await generateKlingFallback(prompt, duration, aspectRatio, style);
+
+            const durationMs = Date.now() - genStartTime;
+            await settleFlatRate(userId, 'video', model, 'fal.ai', {
+                estimatedCost: creditHold.estimatedCost,
+                durationMs,
+                status: 'completed',
+            });
 
             return NextResponse.json({
                 success: true,
@@ -183,6 +191,13 @@ export async function POST(request: NextRequest) {
                 if (!res.ok) throw new Error(`Google API returned ${res.status}`);
                 const data = await res.json();
                 
+                const durationMs = Date.now() - genStartTime;
+                await settleFlatRate(userId, 'video', model, 'Google AI', {
+                    estimatedCost: creditHold.estimatedCost,
+                    durationMs,
+                    status: 'completed',
+                });
+
                 return NextResponse.json({
                     success: true,
                     videoUrl: data.videoUrl || null,
@@ -226,6 +241,13 @@ export async function POST(request: NextRequest) {
 
                 if (!res.ok) throw new Error(`OpenAI API returned ${res.status}`);
                 const data = await res.json();
+
+                const durationMs = Date.now() - genStartTime;
+                await settleFlatRate(userId, 'video', model, 'OpenAI', {
+                    estimatedCost: creditHold.estimatedCost,
+                    durationMs,
+                    status: 'completed',
+                });
 
                 return NextResponse.json({
                     success: true,
@@ -271,6 +293,13 @@ export async function POST(request: NextRequest) {
 
                 if (!res.ok) throw new Error(`Runway API returned ${res.status}`);
                 const data = await res.json();
+
+                const durationMs = Date.now() - genStartTime;
+                await settleFlatRate(userId, 'video', model, 'Runway', {
+                    estimatedCost: creditHold.estimatedCost,
+                    durationMs,
+                    status: 'completed',
+                });
 
                 return NextResponse.json({
                     success: true,

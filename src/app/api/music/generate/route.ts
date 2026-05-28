@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
-import { checkCredits, getBalance } from '@/lib/creditGuard';
+import { preAuthorize, getBalance, settleFlatRate } from '@/lib/creditGuard';
 import { checkRateLimit } from '@/lib/rateLimit';
 
 /* ── Suno Music API ──
@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
         const userId = session.user.id;
+        const genStartTime = Date.now();
 
         const body = await req.json();
         const { prompt, style, title, instrumental, model } = body;
@@ -48,13 +49,13 @@ export async function POST(req: NextRequest) {
             }, { status: 429 });
         }
 
-        /* ── Credit Check ── */
-        const creditCheck = await checkCredits(userId, 'music', model || 'suno');
-        if (!creditCheck.allowed) {
+        /* ── Credit Pre-Authorization ── */
+        const creditHold = await preAuthorize(userId, 'music', model || 'suno');
+        if (!creditHold.allowed) {
             return NextResponse.json({
                 error: 'Insufficient credits',
-                balance: creditCheck.balance,
-                cost: creditCheck.cost,
+                balance: creditHold.balance,
+                cost: creditHold.estimatedCost,
                 upgrade_url: '/settings?tab=subscription',
             }, { status: 402 });
         }
@@ -109,6 +110,14 @@ export async function POST(req: NextRequest) {
 
         const taskId = data.data?.taskId || data.data?.task_id;
         console.log('[Music] Suno generation started, taskId:', taskId);
+
+        // Log usage after successful generation
+        const durationMs = Date.now() - genStartTime;
+        await settleFlatRate(userId, 'music', model || 'suno', 'Suno', {
+            estimatedCost: creditHold.estimatedCost,
+            durationMs,
+            status: 'completed',
+        });
 
         return NextResponse.json({
             taskId,

@@ -311,3 +311,77 @@ export const getByStripeCustomer = query({
       .first();
   },
 });
+
+/* ── Settle credits after generation (two-phase settlement) ── */
+export const settleCredits = mutation({
+  args: {
+    userId: v.string(),
+    estimatedCost: v.number(),
+    actualCost: v.number(),
+    reason: v.string(),
+    metadata: v.optional(v.string()),
+  },
+  handler: async (ctx, { userId, estimatedCost, actualCost, reason, metadata }) => {
+    const diff = estimatedCost - actualCost;
+
+    // No adjustment needed
+    if (Math.abs(diff) < 0.01) {
+      return { adjusted: false, diff: 0, actualCost };
+    }
+
+    const record = await ctx.db
+      .query("user_credits")
+      .withIndex("by_user", (q) => q.eq("user_id", userId))
+      .first();
+
+    if (!record) {
+      return { adjusted: false, diff: 0, actualCost };
+    }
+
+    if (diff > 0) {
+      // Estimated was higher than actual → refund the difference
+      const newBalance = record.balance + diff;
+      await ctx.db.patch(record._id, {
+        balance: newBalance,
+        // Reduce lifetime_used since we over-charged
+        lifetime_used: Math.max(0, record.lifetime_used - diff),
+      });
+
+      await ctx.db.insert("credit_ledger", {
+        user_id: userId,
+        amount: diff,
+        balance_after: newBalance,
+        reason: `settle_refund:${reason}`,
+        metadata,
+        timestamp: Date.now(),
+      });
+
+      return { adjusted: true, diff, actualCost, newBalance };
+    } else {
+      // Actual was higher than estimated → charge the difference
+      const additionalCharge = Math.abs(diff);
+      const newBalance = record.balance - additionalCharge;
+
+      // Don't go below zero — cap at zero
+      const finalBalance = Math.max(0, newBalance);
+      const actualAdditional = record.balance - finalBalance;
+
+      await ctx.db.patch(record._id, {
+        balance: finalBalance,
+        lifetime_used: record.lifetime_used + actualAdditional,
+      });
+
+      await ctx.db.insert("credit_ledger", {
+        user_id: userId,
+        amount: -actualAdditional,
+        balance_after: finalBalance,
+        reason: `settle_charge:${reason}`,
+        metadata,
+        timestamp: Date.now(),
+      });
+
+      return { adjusted: true, diff, actualCost, newBalance: finalBalance };
+    }
+  },
+});
+

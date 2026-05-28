@@ -213,3 +213,17 @@ export async function updateUserPlan(userId: string, plan: string, stripeCustome
 export async function getCreditLedger(userId: string, limit?: number) {
     return await convex.query(api.credits.getLedger, { userId, limit });
 }
+
+/* ── Usage Logs queries ── */
+export async function getUserUsage(userId: string, opts?: { tool?: string; limit?: number }) {
+    return await convex.query(api.usageLogs.getUserUsage, {
+        userId,
+        tool: opts?.tool,
+        limit: opts?.limit,
+    });
+}
+
+export async function getUserUsageSummary(userId: string) {
+    return await convex.query(api.usageLogs.getUserUsageSummary, { userId });
+}
+

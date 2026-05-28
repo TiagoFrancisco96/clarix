@@ -60,6 +60,36 @@ export default defineSchema({
     timestamp: v.number(),
   }).index("by_user", ["user_id"]),
 
+  usage_logs: defineTable({
+    user_id: v.string(),
+    tool: v.string(),           // "chat" | "image" | "video" | "music" | "slides" | ...
+    model_id: v.string(),       // "deepseek-v4-flash" | "gpt-5.4" | ...
+    provider: v.string(),       // "DeepSeek" | "OpenAI" | "Anthropic" | "Google"
+
+    // Token tracking (optional — null for non-chat tools)
+    input_tokens: v.optional(v.number()),
+    output_tokens: v.optional(v.number()),
+    total_tokens: v.optional(v.number()),
+
+    // Cost breakdown
+    base_cost: v.number(),      // Fixed overhead credits
+    token_cost: v.number(),     // Variable token-based credits
+    total_cost: v.number(),     // base_cost + token_cost = what was charged
+    estimated_cost: v.number(), // What was pre-authorized
+
+    // Safety & context
+    fallback_from: v.optional(v.string()),
+    token_source: v.string(),   // "provider" | "estimated" | "flat_rate"
+    status: v.string(),         // "completed" | "failed" | "refunded" | "capped"
+    cost_capped: v.optional(v.boolean()),
+    duration_ms: v.optional(v.number()),
+    metadata: v.optional(v.string()),
+
+    timestamp: v.number(),
+  }).index("by_user", ["user_id"])
+    .index("by_user_tool", ["user_id", "tool"])
+    .index("by_timestamp", ["timestamp"]),
+
   functionErrors: defineTable({
     message: v.string(),
     stack: v.optional(v.string()),

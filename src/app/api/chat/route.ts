@@ -2,7 +2,15 @@ import { NextRequest } from 'next/server';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { insertCreation, insertDriveFile } from '@/lib/db';
-import { checkCredits, creditDeniedResponse, getBalance, refundCredits } from '@/lib/creditGuard';
+import {
+    preAuthorize,
+    creditDeniedResponse,
+    getBalance,
+    refundHold,
+    settleUsage,
+    buildTokenUsage,
+    type PreAuthResult,
+} from '@/lib/creditGuard';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rateLimit';
 
 /* ── Types ── */
@@ -25,13 +33,13 @@ interface ProviderConfig {
     color: string;
     apiKeyEnv: string;
     buildRequest: (messages: ChatMessage[]) => { url: string; init: RequestInit };
-    parseStream: (reader: ReadableStreamDefaultReader<Uint8Array>) => AsyncGenerator<string>;
+    parseStream: (reader: ReadableStreamDefaultReader<Uint8Array>) => AsyncGenerator<string | { __usage: { inputTokens?: number; outputTokens?: number } }>;
 }
 
 /* ── SSE Stream Parsers ── */
 
 /** OpenAI-compatible SSE parser (works for OpenAI, DeepSeek, xAI) */
-async function* parseOpenAIStream(reader: ReadableStreamDefaultReader<Uint8Array>): AsyncGenerator<string> {
+async function* parseOpenAIStream(reader: ReadableStreamDefaultReader<Uint8Array>): AsyncGenerator<string | { __usage: { inputTokens?: number; outputTokens?: number } }> {
     const decoder = new TextDecoder();
     let buffer = '';
 
@@ -51,6 +59,14 @@ async function* parseOpenAIStream(reader: ReadableStreamDefaultReader<Uint8Array
 
             try {
                 const parsed = JSON.parse(data);
+                // Check for usage chunk (final chunk with stream_options)
+                if (parsed.usage && parsed.choices?.length === 0) {
+                    yield { __usage: {
+                        inputTokens: parsed.usage.prompt_tokens,
+                        outputTokens: parsed.usage.completion_tokens,
+                    }};
+                    continue;
+                }
                 const delta = parsed.choices?.[0]?.delta?.content;
                 if (delta) yield delta;
             } catch {
@@ -61,9 +77,11 @@ async function* parseOpenAIStream(reader: ReadableStreamDefaultReader<Uint8Array
 }
 
 /** Anthropic SSE parser (content_block_delta events) */
-async function* parseAnthropicStream(reader: ReadableStreamDefaultReader<Uint8Array>): AsyncGenerator<string> {
+async function* parseAnthropicStream(reader: ReadableStreamDefaultReader<Uint8Array>): AsyncGenerator<string | { __usage: { inputTokens?: number; outputTokens?: number } }> {
     const decoder = new TextDecoder();
     let buffer = '';
+    let inputTokens: number | undefined;
+    let outputTokens: number | undefined;
 
     while (true) {
         const { done, value } = await reader.read();
@@ -80,6 +98,15 @@ async function* parseAnthropicStream(reader: ReadableStreamDefaultReader<Uint8Ar
 
             try {
                 const parsed = JSON.parse(data);
+                // Capture input tokens from message_start
+                if (parsed.type === 'message_start' && parsed.message?.usage) {
+                    inputTokens = parsed.message.usage.input_tokens;
+                }
+                // Capture output tokens from message_delta
+                if (parsed.type === 'message_delta' && parsed.usage) {
+                    outputTokens = parsed.usage.output_tokens;
+                    yield { __usage: { inputTokens, outputTokens } };
+                }
                 if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
                     yield parsed.delta.text;
                 }
@@ -91,7 +118,7 @@ async function* parseAnthropicStream(reader: ReadableStreamDefaultReader<Uint8Ar
 }
 
 /** Google Gemini streaming parser (line-delimited JSON array) */
-async function* parseGeminiStream(reader: ReadableStreamDefaultReader<Uint8Array>): AsyncGenerator<string> {
+async function* parseGeminiStream(reader: ReadableStreamDefaultReader<Uint8Array>): AsyncGenerator<string | { __usage: { inputTokens?: number; outputTokens?: number } }> {
     const decoder = new TextDecoder();
     let buffer = '';
 
@@ -127,6 +154,13 @@ async function* parseGeminiStream(reader: ReadableStreamDefaultReader<Uint8Array
                 const parsed = JSON.parse(jsonStr);
                 const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
                 if (text) yield text;
+                // Extract usage metadata from final chunk
+                if (parsed.usageMetadata) {
+                    yield { __usage: {
+                        inputTokens: parsed.usageMetadata.promptTokenCount,
+                        outputTokens: parsed.usageMetadata.candidatesTokenCount,
+                    }};
+                }
             } catch {
                 // Skip malformed chunks
             }
@@ -157,6 +191,7 @@ function getProviderConfig(modelId: string): ProviderConfig | null {
                         model: 'deepseek-chat',
                         messages,
                         stream: true,
+                        stream_options: { include_usage: true },
                     }),
                 },
             }),
@@ -208,6 +243,7 @@ function getProviderConfig(modelId: string): ProviderConfig | null {
                         model: 'gpt-4o',
                         messages,
                         stream: true,
+                        stream_options: { include_usage: true },
                     }),
                 },
             }),
@@ -374,11 +410,12 @@ export async function POST(req: NextRequest) {
 
     const resolvedModelId = model === 'auto' ? autoRouteModel(lastUserMsg) : model;
 
-    /* ── Credit Check ── */
-    const creditCheck = await checkCredits(userId, 'chat', resolvedModelId);
-    if (!creditCheck.allowed) {
-        return creditDeniedResponse(creditCheck);
+    /* ── Credit Pre-Authorization (Phase 1) ── */
+    const creditHold = await preAuthorize(userId, 'chat', resolvedModelId);
+    if (!creditHold.allowed) {
+        return creditDeniedResponse(creditHold);
     }
+    const streamStartTime = Date.now();
 
     /* ── 4. Get Provider Config ── */
     let providerConfig = getProviderConfig(resolvedModelId);
@@ -409,6 +446,7 @@ export async function POST(req: NextRequest) {
     } catch (fetchErr) {
         console.error(`[Chat API] ${activeProvider.provider} network error:`, fetchErr);
 
+
         // Try fallback on network failure
         const fallback = findFallbackProvider(resolvedModelId);
         if (fallback) {
@@ -418,7 +456,7 @@ export async function POST(req: NextRequest) {
                 upstreamResponse = await fetch(fb.url, fb.init);
             } catch (fbErr) {
                 console.error(`[Chat API] Fallback ${fallback.provider} also failed:`, fbErr);
-                await refundCredits(userId, creditCheck.cost, `chat:${resolvedModelId}:all_providers_failed`);
+                await refundHold(userId, creditHold, `chat:${resolvedModelId}:all_providers_failed`);
                 return new Response(JSON.stringify({ error: 'All AI providers are currently unreachable.' }), {
                     status: 503,
                     headers: { 'Content-Type': 'application/json' },
@@ -452,14 +490,14 @@ export async function POST(req: NextRequest) {
                 Object.assign(activeProvider, fallback);
             } catch (fbErr) {
                 console.error(`[Chat API] Fallback ${fallback.provider} also failed:`, fbErr);
-                await refundCredits(userId, creditCheck.cost, `chat:${resolvedModelId}:http_error`);
+                await refundHold(userId, creditHold, `chat:${resolvedModelId}:http_error`);
                 return new Response(JSON.stringify({ error: `AI provider error (${upstreamResponse!.status}). Fallback also failed.` }), {
                     status: 502,
                     headers: { 'Content-Type': 'application/json' },
                 });
             }
         } else {
-            await refundCredits(userId, creditCheck.cost, `chat:${resolvedModelId}:no_fallback`);
+            await refundHold(userId, creditHold, `chat:${resolvedModelId}:no_fallback`);
             return new Response(JSON.stringify({ error: `AI provider returned HTTP ${upstreamResponse!.status}` }), {
                 status: 502,
                 headers: { 'Content-Type': 'application/json' },
@@ -478,6 +516,7 @@ export async function POST(req: NextRequest) {
 
     const encoder = new TextEncoder();
     let fullResponse = '';
+    let providerTokens: { inputTokens?: number; outputTokens?: number } = {};
 
     const finalProvider = { ...activeProvider };
     const finalFallback = fallbackInfo ? { ...fallbackInfo } : null;
@@ -500,13 +539,43 @@ export async function POST(req: NextRequest) {
                 const streamParser = finalProvider.parseStream(reader);
 
                 for await (const chunk of streamParser) {
+                    // Check if this is a token usage signal from the parser
+                    if (typeof chunk === 'object' && '__usage' in chunk) {
+                        providerTokens = { ...providerTokens, ...chunk.__usage };
+                        continue;
+                    }
                     fullResponse += chunk;
                     const chunkEvent = JSON.stringify({ type: 'chunk', text: chunk });
                     controller.enqueue(encoder.encode(`data: ${chunkEvent}\n\n`));
                 }
 
-                // Send done event
-                const doneEvent = JSON.stringify({ type: 'done', fullText: fullResponse });
+                // ── Settle credits (Phase 2) ──
+                const durationMs = Date.now() - streamStartTime;
+                const inputText = messages.map(m => m.content).join(' ');
+                const tokens = buildTokenUsage(providerTokens, inputText.length, fullResponse.length);
+
+                const settlement = await settleUsage(userId, {
+                    hold: creditHold,
+                    tool: 'chat',
+                    modelId: resolvedModelId,
+                    provider: finalProvider.provider,
+                    tokens,
+                    durationMs,
+                    fallbackFrom: finalFallback?.from,
+                    status: 'completed',
+                });
+
+                // Send done event with usage metadata
+                const doneEvent = JSON.stringify({
+                    type: 'done',
+                    fullText: fullResponse,
+                    usage: {
+                        inputTokens: tokens.inputTokens,
+                        outputTokens: tokens.outputTokens,
+                        cost: settlement.actualCost,
+                        tokenSource: tokens.source,
+                    },
+                });
                 controller.enqueue(encoder.encode(`data: ${doneEvent}\n\n`));
 
                 controller.close();
