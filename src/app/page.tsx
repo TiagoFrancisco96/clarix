@@ -254,19 +254,19 @@ export default function HomePage() {
       <div className="home-content">
         {/* ── Hero ── */}
         <section className="hero">
-          <div className="hero__badge animate-float">
+          <div className="hero__badge">
             <span className="hero__badge-dot" />
-            <span>Join 2,000+ creators &middot; Free forever plan</span>
+            <span>Free to start &middot; No credit card required</span>
           </div>
 
           <h1 className="hero__title">
-            <span className="hero__title-line">Stop juggling apps.</span>
-            <span className="hero__title-line hero__title-gradient">Start creating.</span>
+            <span className="hero__title-line">Create anything.</span>
+            <span className="hero__title-line hero__title-gradient">Research everything.</span>
           </h1>
 
           <p className="hero__desc">
-            You&apos;re paying for ChatGPT, Midjourney, Suno, and more &mdash; separately.
-            Clarix replaces them all with 15 AI tools in one workspace, for a fraction of the cost.
+            15 AI tools in one workspace &mdash; images, videos, music, docs, code, and more.
+            Powered by the world&apos;s best AI, working together for you.
           </p>
 
           {/* ── Interactive Prompt Bar ── */}
@@ -436,45 +436,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ── Social Proof ── */}
-        <section className="social-proof reveal" ref={socialRef as React.RefObject<HTMLElement>}>
-          <div className="social-proof__header">
-            <span className="section-label">Don&apos;t Take Our Word for It</span>
-            <h2 className="section-title">Creators and teams love Clarix</h2>
-          </div>
-          <div className="testimonials-grid">
-            <div className="testimonial-card">
-              <p className="testimonial-card__quote">&ldquo;I was paying $20 for ChatGPT, $30 for Midjourney, and $10 for Suno. Clarix replaced all three for less. I save $31/month AND get better results because it auto-picks the right AI.&rdquo;</p>
-              <div className="testimonial-card__author">
-                <div className="testimonial-card__avatar">MR</div>
-                <div>
-                  <span className="testimonial-card__name">Marco R.</span>
-                  <span className="testimonial-card__role">Content Creator</span>
-                </div>
-              </div>
-            </div>
-            <div className="testimonial-card">
-              <p className="testimonial-card__quote">&ldquo;The smart routing is genuinely magic. I just type what I need and it picks the right AI. Our team&apos;s content output went up 40% in the first month &mdash; without hiring anyone.&rdquo;</p>
-              <div className="testimonial-card__author">
-                <div className="testimonial-card__avatar">SK</div>
-                <div>
-                  <span className="testimonial-card__name">Sarah K.</span>
-                  <span className="testimonial-card__role">Startup Founder</span>
-                </div>
-              </div>
-            </div>
-            <div className="testimonial-card">
-              <p className="testimonial-card__quote">&ldquo;I was skeptical &mdash; another AI wrapper? But this actually works. Chat, images, video, code, all in one place. The free tier alone convinced me to upgrade to Pro within a week.&rdquo;</p>
-              <div className="testimonial-card__author">
-                <div className="testimonial-card__avatar">JT</div>
-                <div>
-                  <span className="testimonial-card__name">James T.</span>
-                  <span className="testimonial-card__role">Full-Stack Developer</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+
 
         {/* ── Tool Grid ── */}
         <section className="tools-section reveal" id="features" ref={toolsRef as React.RefObject<HTMLElement>}>
@@ -551,17 +513,17 @@ export default function HomePage() {
         {/* ── Pricing ── */}
         <section className="pricing-section reveal" id="pricing" ref={pricingRef as React.RefObject<HTMLElement>}>
           <div className="pricing-section__header">
-            <span className="section-label">Simple, Honest Pricing</span>
-            <h2 className="section-title">Why pay $60+/mo for separate AI tools?</h2>
-            <p className="pricing-section__subtitle">200 free credits = ~100 chat messages, ~20 images, ~5 videos, or ~3 songs. No credit card required.</p>
+            <span className="section-label">Simple Pricing</span>
+            <h2 className="section-title">Start free. Upgrade when you need more.</h2>
+            <p className="pricing-section__subtitle">200 free credits = ~100 chat messages, ~20 images, ~5 videos, or ~3 songs</p>
           </div>
-          <div className="pricing-grid pricing-grid--3">
+          <div className="pricing-grid pricing-grid--2">
             <div className="pricing-card">
               <span className="pricing-card__name">Free</span>
               <div className="pricing-card__price">$0<span>/month</span></div>
               <ul className="pricing-card__features">
                 <li>&#x2713; 200 credits per month</li>
-                <li>&#x2713; All 15 AI tools included</li>
+                <li>&#x2713; All 15 AI tools</li>
                 <li>&#x2713; All 4 AI models</li>
                 <li>&#x2713; Smart AI routing</li>
                 <li>&#x2713; Custom AI agents</li>
@@ -571,12 +533,12 @@ export default function HomePage() {
               <Link href="/chat" className="pricing-card__btn">Get Started Free</Link>
             </div>
             <div className="pricing-card pricing-card--featured">
-              <div className="pricing-card__badge">Most Popular</div>
+              <div className="pricing-card__badge">150x More Credits</div>
               <span className="pricing-card__name">Pro</span>
               <div className="pricing-card__price">$29<span>/month</span></div>
               <ul className="pricing-card__features">
                 <li>&#x2713; 30,000 credits/month</li>
-                <li>&#x2713; All 15 AI tools included</li>
+                <li>&#x2713; All 15 AI tools</li>
                 <li>&#x2713; All 4 AI models</li>
                 <li>&#x2713; Smart AI routing</li>
                 <li>&#x2713; Custom AI agents</li>
@@ -584,20 +546,6 @@ export default function HomePage() {
                 <li>&#x2713; Email support</li>
               </ul>
               <Link href="/chat" className="pricing-card__btn pricing-card__btn--gold">Start Pro Trial</Link>
-            </div>
-            <div className="pricing-card">
-              <span className="pricing-card__name">Enterprise</span>
-              <div className="pricing-card__price">Custom</div>
-              <ul className="pricing-card__features">
-                <li>&#x2713; 200,000+ credits/month</li>
-                <li>&#x2713; Everything in Pro</li>
-                <li>&#x2713; Volume credit pricing</li>
-                <li>&#x2713; Dedicated support</li>
-                <li>&nbsp;</li>
-                <li>&nbsp;</li>
-                <li>&nbsp;</li>
-              </ul>
-              <Link href="/info?tab=contact" className="pricing-card__btn">Contact Sales</Link>
             </div>
           </div>
         </section>
@@ -630,8 +578,8 @@ export default function HomePage() {
         {/* ── CTA ── */}
         <section className="cta-section reveal" ref={ctaRef as React.RefObject<HTMLElement>}>
           <div className="cta-section__glow" />
-          <h2 className="cta-section__title">Your next idea is waiting.</h2>
-          <p className="cta-section__desc">Join 2,000+ creators already using Clarix. Start with 200 free credits &mdash; no credit card, no commitment.</p>
+          <h2 className="cta-section__title">Ready to try it? It&apos;s free.</h2>
+          <p className="cta-section__desc">Start with 200 free credits &mdash; no credit card, no commitment.</p>
           <Link href="/chat" className="cta-section__btn">
             <span>Start My Free Workspace</span>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">

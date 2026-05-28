@@ -1758,7 +1758,6 @@
 .pricing-section {
     padding: var(--space-8) 0 var(--space-12);
 }
-
 .pricing-section__header {
     margin-bottom: var(--space-10);
 }
@@ -1770,6 +1769,11 @@
     align-items: stretch;
 }
 
+.pricing-grid--2 {
+    grid-template-columns: repeat(2, 1fr);
+    max-width: 680px;
+    margin: 0 auto;
+}
 
 .pricing-card {
     position: relative;
