@@ -245,7 +245,7 @@ export default function HomePage() {
           </h1>
 
           <p className="hero__desc">
-            Write, create images, make videos, compose music, build presentations &mdash;<br />
+            Write, create images, make videos, compose music, build presentations &mdash;
             all powered by the world&apos;s best AI, working together for you.
           </p>
 
@@ -335,7 +335,7 @@ export default function HomePage() {
                 </div>
               </div>
             </div>
-            <p className="prompt-hint">Press <kbd>Enter</kbd> to launch &middot; Try &quot;Create&quot; mode for generation tasks</p>
+            <p className="prompt-hint">Press <kbd>Enter</kbd> to launch &middot; Mode auto-detects from your prompt</p>
           </div>
 
           {/* Trust Indicators */}
@@ -421,14 +421,29 @@ export default function HomePage() {
                 what you&apos;re asking for and sends your request to whichever AI is best
                 at that kind of task &mdash; writing, coding, research, or quick answers.
               </p>
+              <Link href="/chat" className="feature-card__cta">
+                Try it free
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
+              </Link>
             </div>
             <div className="feature-card__visual">
-              <div className="moa-visual">
-                <div className="moa-visual__center">AI</div>
-                <div className="moa-visual__orbit moa-visual__orbit--1"><span>✍️ Writer</span></div>
-                <div className="moa-visual__orbit moa-visual__orbit--2"><span>💻 Pro</span></div>
-                <div className="moa-visual__orbit moa-visual__orbit--3"><span>📚 Research</span></div>
-                <div className="moa-visual__orbit moa-visual__orbit--4"><span>⚡ Speed</span></div>
+              <div className="routing-visual">
+                <div className="routing-visual__models">
+                  <div className="routing-visual__pill">✍️ Writer</div>
+                  <div className="routing-visual__pill">💻 Pro</div>
+                  <div className="routing-visual__pill">📚 Research</div>
+                  <div className="routing-visual__pill">⚡ Speed</div>
+                </div>
+                <div className="routing-visual__flow">
+                  <div className="routing-visual__line" />
+                  <div className="routing-visual__hub">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
+                  </div>
+                  <div className="routing-visual__line" />
+                </div>
+                <div className="routing-visual__output">
+                  <div className="routing-visual__pill routing-visual__pill--result">Best answer</div>
+                </div>
               </div>
             </div>
           </div>
@@ -449,7 +464,9 @@ export default function HomePage() {
                 <li>&#x2713; Access to all AI tools</li>
                 <li>&#x2713; All 4 AI models</li>
                 <li>&#x2713; 1 GB Drive storage</li>
+                <li>&#x2713; Smart AI routing</li>
                 <li>&#x2713; Community support</li>
+                <li>&#x2713; No credit card needed</li>
               </ul>
               <Link href="/chat" className="pricing-card__btn">Get Started</Link>
             </div>

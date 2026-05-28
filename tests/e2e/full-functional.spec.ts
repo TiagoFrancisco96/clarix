@@ -83,14 +83,13 @@ test.describe('Homepage Interactivity', () => {
         expect(count).toBeGreaterThanOrEqual(3);
     });
 
-    test('MoA orbital visual renders center + orbits', async ({ page }) => {
-        const center = page.locator('.moa-visual__center');
-        await expect(center).toBeVisible({ timeout: 8000 });
-        await expect(center).toHaveText('AI');
+    test('routing visual renders hub + model pills', async ({ page }) => {
+        const hub = page.locator('.routing-visual__hub');
+        await expect(hub).toBeVisible({ timeout: 8000 });
 
-        const orbits = page.locator('.moa-visual__orbit');
-        const orbitCount = await orbits.count();
-        expect(orbitCount).toBeGreaterThanOrEqual(3);
+        const pills = page.locator('.routing-visual__pill');
+        const pillCount = await pills.count();
+        expect(pillCount).toBeGreaterThanOrEqual(4); // 4 models + 1 result
     });
 
     test('footer links to /info, /status, /privacy, /terms, /security all work', async ({ page }) => {
