@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { insertCreation, insertDriveFile } from '@/lib/db';
+import { getApiKey } from '@/lib/keys';
 import {
     preAuthorize,
     creditDeniedResponse,
@@ -32,7 +33,7 @@ interface ProviderConfig {
     displayName: string;
     color: string;
     apiKeyEnv: string;
-    buildRequest: (messages: ChatMessage[]) => { url: string; init: RequestInit };
+    buildRequest: (messages: ChatMessage[], apiKey: string) => { url: string; init: RequestInit };
     parseStream: (reader: ReadableStreamDefaultReader<Uint8Array>) => AsyncGenerator<string | { __usage: { inputTokens?: number; outputTokens?: number } }>;
 }
 
@@ -179,12 +180,12 @@ function getProviderConfig(modelId: string): ProviderConfig | null {
             displayName: 'DeepSeek V4-Flash',
             color: '#a78bfa',
             apiKeyEnv: 'DEEPSEEK_API_KEY',
-            buildRequest: (messages) => ({
+            buildRequest: (messages, apiKey) => ({
                 url: 'https://api.deepseek.com/chat/completions',
                 init: {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+                        'Authorization': `Bearer ${apiKey}`,
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
@@ -202,12 +203,12 @@ function getProviderConfig(modelId: string): ProviderConfig | null {
             displayName: 'Claude Sonnet 4.6',
             color: '#e8915a',
             apiKeyEnv: 'ANTHROPIC_API_KEY',
-            buildRequest: (messages) => ({
+            buildRequest: (messages, apiKey) => ({
                 url: 'https://api.anthropic.com/v1/messages',
                 init: {
                     method: 'POST',
                     headers: {
-                        'x-api-key': process.env.ANTHROPIC_API_KEY!,
+                        'x-api-key': apiKey,
                         'content-type': 'application/json',
                         'anthropic-version': '2023-06-01',
                     },
@@ -231,12 +232,12 @@ function getProviderConfig(modelId: string): ProviderConfig | null {
             displayName: 'GPT-5.4',
             color: '#10a37f',
             apiKeyEnv: 'OPENAI_API_KEY',
-            buildRequest: (messages) => ({
+            buildRequest: (messages, apiKey) => ({
                 url: 'https://api.openai.com/v1/chat/completions',
                 init: {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+                        'Authorization': `Bearer ${apiKey}`,
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
@@ -255,8 +256,7 @@ function getProviderConfig(modelId: string): ProviderConfig | null {
             displayName: 'Gemini 3.1 Pro',
             color: '#4285f4',
             apiKeyEnv: 'GOOGLE_AI_API_KEY',
-            buildRequest: (messages) => {
-                const key = process.env.GOOGLE_AI_API_KEY;
+            buildRequest: (messages, apiKey) => {
                 // Convert chat format to Gemini format
                 const geminiMessages = messages
                     .filter(m => m.role !== 'system')
@@ -271,7 +271,7 @@ function getProviderConfig(modelId: string): ProviderConfig | null {
                     .join('\n');
 
                 return {
-                    url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:streamGenerateContent?alt=sse&key=${key}`,
+                    url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:streamGenerateContent?alt=sse&key=${apiKey}`,
                     init: {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -323,12 +323,15 @@ const FALLBACK_CHAIN = [
     'deepseek-v4-flash',
 ];
 
-function findFallbackProvider(failedModelId: string): ProviderConfig | null {
+async function findFallbackProvider(failedModelId: string): Promise<{ config: ProviderConfig; apiKey: string } | null> {
     for (const fallbackId of FALLBACK_CHAIN) {
         if (fallbackId === failedModelId) continue;
         const config = getProviderConfig(fallbackId);
-        if (config && process.env[config.apiKeyEnv]) {
-            return config;
+        if (config) {
+            const key = await getApiKey(config.apiKeyEnv);
+            if (key) {
+                return { config, apiKey: key };
+            }
         }
     }
     return null;
@@ -417,28 +420,30 @@ export async function POST(req: NextRequest) {
     }
     const streamStartTime = Date.now();
 
-    /* ── 4. Get Provider Config ── */
+    /* ── 4. Get Provider Config & API Key ── */
     let providerConfig = getProviderConfig(resolvedModelId);
     let fallbackInfo: { from: string; to: string } | null = null;
+    let apiKey = providerConfig ? await getApiKey(providerConfig.apiKeyEnv) : undefined;
 
-    if (!providerConfig || !process.env[providerConfig.apiKeyEnv]) {
+    if (!providerConfig || !apiKey) {
         // Primary provider unavailable — try fallback chain
-        const fallback = findFallbackProvider(resolvedModelId);
+        const fallback = await findFallbackProvider(resolvedModelId);
         if (!fallback) {
-            return new Response(JSON.stringify({ error: 'No AI providers are configured. Please add API keys in .env.local.' }), {
+            return new Response(JSON.stringify({ error: 'No AI providers are configured. Please add API keys in the admin panel.' }), {
                 status: 503,
                 headers: { 'Content-Type': 'application/json' },
             });
         }
         const originalName = providerConfig?.displayName || resolvedModelId;
-        fallbackInfo = { from: originalName, to: fallback.displayName };
-        providerConfig = fallback;
+        fallbackInfo = { from: originalName, to: fallback.config.displayName };
+        providerConfig = fallback.config;
+        apiKey = fallback.apiKey;
     }
 
     const activeProvider = providerConfig;
 
     /* ── 5. Build and Execute Streaming Request ── */
-    const { url, init } = activeProvider.buildRequest(messages);
+    const { url, init } = activeProvider.buildRequest(messages, apiKey);
 
     let upstreamResponse: Response;
     try {
@@ -448,14 +453,14 @@ export async function POST(req: NextRequest) {
 
 
         // Try fallback on network failure
-        const fallback = findFallbackProvider(resolvedModelId);
+        const fallback = await findFallbackProvider(resolvedModelId);
         if (fallback) {
-            fallbackInfo = { from: activeProvider.displayName, to: fallback.displayName };
-            const fb = fallback.buildRequest(messages);
+            fallbackInfo = { from: activeProvider.displayName, to: fallback.config.displayName };
+            const fb = fallback.config.buildRequest(messages, fallback.apiKey);
             try {
                 upstreamResponse = await fetch(fb.url, fb.init);
             } catch (fbErr) {
-                console.error(`[Chat API] Fallback ${fallback.provider} also failed:`, fbErr);
+                console.error(`[Chat API] Fallback ${fallback.config.provider} also failed:`, fbErr);
                 await refundHold(userId, creditHold, `chat:${resolvedModelId}:all_providers_failed`);
                 return new Response(JSON.stringify({ error: 'All AI providers are currently unreachable.' }), {
                     status: 503,
@@ -463,7 +468,7 @@ export async function POST(req: NextRequest) {
                 });
             }
             // Reassign activeProvider for parsing
-            Object.assign(activeProvider, fallback);
+            Object.assign(activeProvider, fallback.config);
         } else {
             return new Response(JSON.stringify({ error: 'AI provider unreachable and no fallback available.' }), {
                 status: 503,
@@ -477,19 +482,19 @@ export async function POST(req: NextRequest) {
         console.error(`[Chat API] ${activeProvider.provider} HTTP ${upstreamResponse!.status}:`, errText);
 
         // Try fallback on HTTP error
-        const fallback = findFallbackProvider(resolvedModelId);
+        const fallback = await findFallbackProvider(resolvedModelId);
         if (fallback) {
-            fallbackInfo = { from: activeProvider.displayName, to: fallback.displayName };
-            const fb = fallback.buildRequest(messages);
+            fallbackInfo = { from: activeProvider.displayName, to: fallback.config.displayName };
+            const fb = fallback.config.buildRequest(messages, fallback.apiKey);
             try {
                 upstreamResponse = await fetch(fb.url, fb.init);
                 if (!upstreamResponse.ok) {
                     throw new Error(`Fallback also returned HTTP ${upstreamResponse.status}`);
                 }
                 // Update active provider for stream parsing
-                Object.assign(activeProvider, fallback);
+                Object.assign(activeProvider, fallback.config);
             } catch (fbErr) {
-                console.error(`[Chat API] Fallback ${fallback.provider} also failed:`, fbErr);
+                console.error(`[Chat API] Fallback ${fallback.config.provider} also failed:`, fbErr);
                 await refundHold(userId, creditHold, `chat:${resolvedModelId}:http_error`);
                 return new Response(JSON.stringify({ error: `AI provider error (${upstreamResponse!.status}). Fallback also failed.` }), {
                     status: 502,

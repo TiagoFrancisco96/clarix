@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { PLAN_ALLOCATIONS, CREDIT_PACKS } from '@/lib/creditCosts';
+import { getApiKey } from '@/lib/keys';
 
 /**
  * POST /api/stripe/checkout — Creates a Stripe Checkout session.
@@ -22,7 +23,7 @@ export async function POST(req: NextRequest) {
         const body = await req.json();
         const { type, planId, packId } = body;
 
-        const stripeKey = process.env.STRIPE_SECRET_KEY;
+        const stripeKey = await getApiKey('STRIPE_SECRET_KEY');
         if (!stripeKey) {
             return NextResponse.json({
                 error: 'Payments are not configured yet',

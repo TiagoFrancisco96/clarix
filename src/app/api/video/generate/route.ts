@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { preAuthorize, creditDeniedResponse, getBalance, refundHold, settleFlatRate } from '@/lib/creditGuard';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rateLimit';
+import { getApiKey } from '@/lib/keys';
 
 /* ── Display names for notification/fallback logs ── */
 const MODEL_DISPLAY_NAMES: Record<string, string> = {
@@ -63,7 +64,7 @@ async function generateKlingFallback(
     aspectRatio?: string,
     style?: string
 ): Promise<{ url: string | null; requestId?: string }> {
-    const falKey = process.env.FAL_KEY;
+    const falKey = await getApiKey('FAL_KEY');
     if (!falKey) throw new Error('FAL_KEY not configured for fallback');
 
     fal.config({ credentials: falKey });
@@ -149,7 +150,7 @@ export async function POST(request: NextRequest) {
 
         // ── Kling via fal.ai ──
         if (modelConfig.provider === 'fal') {
-            const falKey = process.env.FAL_KEY;
+            const falKey = await getApiKey('FAL_KEY');
             if (!falKey) {
                 return NextResponse.json(
                     { error: 'FAL_KEY not configured' },
@@ -178,7 +179,7 @@ export async function POST(request: NextRequest) {
         // ── Google Veo 3.1 & Fast ──
         if (modelConfig.provider === 'google') {
             try {
-                const apiKey = process.env.GOOGLE_AI_API_KEY;
+                const apiKey = await getApiKey('GOOGLE_AI_API_KEY');
                 if (!apiKey) throw new Error('GOOGLE_AI_API_KEY not configured');
 
                 // Perform Google Imagen / Veo Video generation endpoint fetch
@@ -227,7 +228,7 @@ export async function POST(request: NextRequest) {
         // ── OpenAI Veo 3.1 Pro ──
         if (modelConfig.provider === 'openai') {
             try {
-                const apiKey = process.env.OPENAI_API_KEY;
+                const apiKey = await getApiKey('OPENAI_API_KEY');
                 if (!apiKey) throw new Error('OPENAI_API_KEY not configured');
 
                 const res = await fetch('https://api.openai.com/v1/video/generations', {
@@ -278,7 +279,7 @@ export async function POST(request: NextRequest) {
         // ── Runway Gen-4.5 ──
         if (modelConfig.provider === 'runway') {
             try {
-                const apiKey = process.env.RUNWAY_API_KEY;
+                const apiKey = await getApiKey('RUNWAY_API_KEY');
                 if (!apiKey) throw new Error('RUNWAY_API_KEY not configured');
 
                 // Perform Runway Gen-4.5 endpoint fetch

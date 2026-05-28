@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { preAuthorize, getBalance, settleFlatRate } from '@/lib/creditGuard';
 import { checkRateLimit } from '@/lib/rateLimit';
+import { getApiKey } from '@/lib/keys';
 
 /* ── Suno Music API ──
  *  POST https://api.sunoapi.org/api/v1/generate
@@ -10,12 +11,12 @@ import { checkRateLimit } from '@/lib/rateLimit';
  *  Full songs with real vocals, instruments, mastering
  * ────────────────────────────────────────────────────────── */
 
-const SUNO_API_KEY = process.env.SUNO_API_KEY;
 const SUNO_BASE_URL = 'https://api.sunoapi.org/api/v1';
 
 export async function POST(req: NextRequest) {
     try {
-        if (!SUNO_API_KEY) {
+        const sunoApiKey = await getApiKey('SUNO_API_KEY');
+        if (!sunoApiKey) {
             return NextResponse.json({ error: 'SUNO_API_KEY not configured' }, { status: 500 });
         }
 
@@ -82,7 +83,7 @@ export async function POST(req: NextRequest) {
         const response = await fetch(`${SUNO_BASE_URL}/generate`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${SUNO_API_KEY}`,
+                'Authorization': `Bearer ${sunoApiKey}`,
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(sunoBody),

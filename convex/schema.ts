@@ -100,5 +100,12 @@ export default defineSchema({
     timestamp: v.number(),
   }).index("by_severity", ["severity"])
     .index("by_component", ["component"]),
+
+  system_configs: defineTable({
+    key: v.string(),
+    value: v.string(),
+    description: v.optional(v.string()),
+    updated_at: v.number(),
+  }).index("by_key", ["key"]),
 });
 

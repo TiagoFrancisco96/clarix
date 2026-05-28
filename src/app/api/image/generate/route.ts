@@ -3,10 +3,11 @@ import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { preAuthorize, creditDeniedResponse, getBalance, refundHold, settleFlatRate, type PreAuthResult } from '@/lib/creditGuard';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rateLimit';
+import { getApiKey } from '@/lib/keys';
 
 // Helper function to generate via Fal.ai (Flux)
 async function generateViaFal(prompt: string, model: string = 'fal-ai/flux/schnell') {
-    const falKey = process.env.FAL_KEY;
+    const falKey = await getApiKey('FAL_KEY');
     if (!falKey) throw new Error('FAL_KEY missing');
     
     const res = await fetch(`https://fal.run/${model}`, {
@@ -87,7 +88,7 @@ export async function POST(req: NextRequest) {
         if (model === 'nano-banana-pro') {
             // Google Imagen 3/4 via Gemini API
             try {
-                const apiKey = process.env.GOOGLE_AI_API_KEY;
+                const apiKey = await getApiKey('GOOGLE_AI_API_KEY');
                 if (!apiKey) throw new Error('GOOGLE_AI_API_KEY not configured');
 
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`, {
@@ -125,7 +126,7 @@ export async function POST(req: NextRequest) {
         } else if (model === 'gpt-image-2') {
             // OpenAI DALL-E 3
             try {
-                const apiKey = process.env.OPENAI_API_KEY;
+                const apiKey = await getApiKey('OPENAI_API_KEY');
                 if (!apiKey) throw new Error('OPENAI_API_KEY not configured');
 
                 const res = await fetch('https://api.openai.com/v1/images/generations', {
@@ -172,7 +173,7 @@ export async function POST(req: NextRequest) {
         } else if (model === 'ideogram-v3') {
             // Ideogram API
             try {
-                const apiKey = process.env.IDEOGRAM_API_KEY;
+                const apiKey = await getApiKey('IDEOGRAM_API_KEY');
                 if (!apiKey) throw new Error('IDEOGRAM_API_KEY not configured');
 
                 const res = await fetch('https://api.ideogram.ai/generate', {

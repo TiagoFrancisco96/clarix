@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { addUserCredits, updateUserPlan } from '@/lib/db';
+import { getApiKey } from '@/lib/keys';
 
 /**
  * POST /api/stripe/webhook — Handles Stripe webhook events.
@@ -10,8 +11,8 @@ import { addUserCredits, updateUserPlan } from '@/lib/db';
  * - customer.subscription.deleted → downgrade to free
  */
 export async function POST(req: NextRequest) {
-    const stripeKey = process.env.STRIPE_SECRET_KEY;
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    const stripeKey = await getApiKey('STRIPE_SECRET_KEY');
+    const webhookSecret = await getApiKey('STRIPE_WEBHOOK_SECRET');
 
     if (!stripeKey) {
         return NextResponse.json({ error: 'Stripe not configured' }, { status: 503 });

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { useQuery, useAction } from 'convex/react';
+import { useQuery, useAction, useMutation } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import './admin.css';
 
@@ -45,8 +45,7 @@ interface HealthData {
     features: FeatureCheck[];
 }
 
-type Tab = 'overview' | 'services' | 'env' | 'database' | 'features' | 'flows' | 'e2e';
-
+type Tab = 'overview' | 'users' | 'integrations' | 'services' | 'database' | 'features' | 'flows' | 'e2e';
 
 /* ── Flow Test Types ── */
 interface TestStep {
@@ -66,23 +65,61 @@ interface TestFlow {
 
 /* ── Component ── */
 export default function AdminPage() {
+    // Auth Check
+    const currentUser = useQuery(api.auth.getOptionalUser);
+    
+    // Core States
     const [data, setData] = useState<HealthData | null>(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<Tab>('overview');
     const [flows, setFlows] = useState<TestFlow[]>(getInitialFlows());
     const [runningFlow, setRunningFlow] = useState<string | null>(null);
 
-    /* ── Convex Hooks ── */
+    // Convex Hooks
     const recentErrors = useQuery(api.errorTracking.getRecentErrors, { limit: 30 });
     const errorStats = useQuery(api.errorTracking.getErrorStats);
     const triggerE2EAuditAction = useAction(api.aiDiagnostics.triggerE2EAudit);
+    
+    // Whitelisted admin operations
+    const systemConfigs = useQuery(api.admin.getSystemConfigs);
+    const listUsersResult = useQuery(api.admin.listUsers);
+    
+    const setSystemConfigMutation = useMutation(api.admin.setSystemConfig);
+    const deleteSystemConfigMutation = useMutation(api.admin.deleteSystemConfig);
+    const updateUserCreditsMutation = useMutation(api.admin.updateUserCredits);
+    const updateUserPlanMutation = useMutation(api.admin.updateUserPlan);
 
-    /* ── E2E Click Audit State ── */
+    // E2E Click Audit State
     const [targetUrl, setTargetUrl] = useState('https://clarix.ai');
     const [dispatchStatus, setDispatchStatus] = useState<'pending' | 'running' | 'success' | 'error'>('pending');
     const [dispatchMessage, setDispatchMessage] = useState('');
     const [isGuideOpen, setIsGuideOpen] = useState(false);
     const [expandedMeta, setExpandedMeta] = useState<Record<string, boolean>>({});
+
+    // User Management States
+    const [userSearchQuery, setUserSearchQuery] = useState('');
+    const [selectedUserForCredits, setSelectedUserForCredits] = useState<any | null>(null);
+    const [creditAdjustAmount, setCreditAdjustAmount] = useState<number>(1000);
+    const [creditAdjustAction, setCreditAdjustAction] = useState<'add' | 'deduct' | 'set'>('add');
+    const [creditAdjustReason, setCreditAdjustReason] = useState('Admin support grant');
+    const [isAdjustingCredits, setIsAdjustingCredits] = useState(false);
+    
+    // Integrations / API Key States
+    const [keyInputs, setKeyInputs] = useState<Record<string, string>>({});
+    const [keyDescriptions, setKeyDescriptions] = useState<Record<string, string>>({
+        OPENAI_API_KEY: 'Primary OpenAI engine key for GPT-5.4 models.',
+        ANTHROPIC_API_KEY: 'Claude Sonnet 4.6 backend prompt resolver key.',
+        GOOGLE_AI_API_KEY: 'Google Gemini 3.1 Pro & Imagen 4 creation key.',
+        DEEPSEEK_API_KEY: 'DeepSeek V4-Flash fast & cheap prompt resolution key.',
+        FAL_KEY: 'Black Forest Labs FLUX image and Kling video generation key.',
+        SUNO_API_KEY: 'Suno Music generation engine key.',
+        ELEVENLABS_API_KEY: 'ElevenLabs TTS & high-fidelity vocals key.',
+        STRIPE_SECRET_KEY: 'Stripe payment processor secure webhook & checkout key.',
+        STRIPE_PUBLISHABLE_KEY: 'Stripe client checkout public routing key.',
+        STRIPE_WEBHOOK_SECRET: 'Stripe signature webhook verification key.',
+        BETTER_AUTH_SECRET: 'Secure auth token validator (also enables DB overrides).'
+    });
+    const [savingKeyName, setSavingKeyName] = useState<string | null>(null);
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -96,7 +133,6 @@ export default function AdminPage() {
         setDispatchMessage('Initializing GitHub Actions virtual machine dispatcher bridge...');
         
         try {
-            // Convex handles current user session identity verification automatically in token headers
             const result = await triggerE2EAuditAction({ siteUrl: targetUrl });
             if (result.success) {
                 setDispatchStatus('success');
@@ -119,7 +155,7 @@ export default function AdminPage() {
         try {
             return JSON.stringify(JSON.parse(raw), null, 2);
         } catch {
-            return raw; // Return raw string if JSON is malformed
+            return raw; 
         }
     };
 
@@ -138,17 +174,15 @@ export default function AdminPage() {
     }, []);
 
     useEffect(() => {
-        fetchHealth();
-    }, [fetchHealth]);
+        if (currentUser && currentUser.email) {
+            const allowedAdmins = ["tiago@clarix.ai", "admin@clarix.ai", "tiagofrancisco96@gmail.com", "legal@clarix.ai"];
+            if (allowedAdmins.includes(currentUser.email.toLowerCase())) {
+                fetchHealth();
+            }
+        }
+    }, [currentUser, fetchHealth]);
 
-    /* ── Summary counts ── */
-    const serviceOk = data?.services.filter(s => s.status === 'ok').length ?? 0;
-    const serviceError = data?.services.filter(s => s.status === 'error').length ?? 0;
-    const featureReady = data?.features.filter(f => f.status === 'ready').length ?? 0;
-    const featureBlocked = data?.features.filter(f => f.status === 'blocked').length ?? 0;
-    const dbOk = data?.database.filter(d => d.status === 'ok').length ?? 0;
-
-    /* ── Flow test runner ── */
+    /* ── E2E Flow test runner ── */
     async function runFlow(flowId: string) {
         if (runningFlow) return;
         setRunningFlow(flowId);
@@ -160,7 +194,6 @@ export default function AdminPage() {
         const updatedSteps = [...flow.steps];
 
         for (let i = 0; i < updatedSteps.length; i++) {
-            // Mark current step as running
             updatedSteps[i] = { ...updatedSteps[i], status: 'running' };
             setFlows(prev => {
                 const copy = [...prev];
@@ -180,7 +213,6 @@ export default function AdminPage() {
                     time: Date.now() - start,
                     error: (err as Error).message,
                 };
-                // Mark remaining as pending
                 for (let j = i + 1; j < updatedSteps.length; j++) {
                     updatedSteps[j] = { ...updatedSteps[j], status: 'pending' };
                 }
@@ -227,7 +259,6 @@ export default function AdminPage() {
                 return;
             }
             case 'chat-ping': {
-                // Just check the chat page loads (quick check)
                 const res = await fetch('/chat', { method: 'HEAD' });
                 if (!res.ok) throw new Error(`Chat page returned ${res.status}`);
                 return;
@@ -296,7 +327,6 @@ export default function AdminPage() {
                 if (!res.ok) throw new Error(`Chat API returned ${res.status}`);
                 if (!res.body) throw new Error('Chat API returned no stream body');
 
-                // Read and validate the SSE stream
                 const reader = res.body.getReader();
                 const decoder = new TextDecoder();
                 let sseText = '';
@@ -339,8 +369,8 @@ export default function AdminPage() {
                 if (!res.ok) throw new Error(`Creations POST returned ${res.status}`);
                 const data = await res.json();
                 if (!data.success || !data.creationId) throw new Error('Invalid creations save response');
-                (window as unknown as Record<string, string>)._e2eCreationId = data.creationId;
-                (window as unknown as Record<string, string>)._e2eDriveFileId = data.driveFileId;
+                (window as any)._e2eCreationId = data.creationId;
+                (window as any)._e2eDriveFileId = data.driveFileId;
                 return;
             }
             case 'drive-upload-test': {
@@ -355,7 +385,7 @@ export default function AdminPage() {
                 if (!res.ok) throw new Error(`Drive POST returned ${res.status}`);
                 const data = await res.json();
                 if (!data.success || !data.fileId) throw new Error('Invalid upload response');
-                (window as unknown as Record<string, string>)._e2eUploadedFileId = data.fileId;
+                (window as any)._e2eUploadedFileId = data.fileId;
                 return;
             }
             case 'drive-limit-check': {
@@ -372,7 +402,7 @@ export default function AdminPage() {
                 return;
             }
             case 'drive-delete-cleanup': {
-                const fileId = (window as unknown as Record<string, string>)._e2eUploadedFileId;
+                const fileId = (window as any)._e2eUploadedFileId;
                 if (fileId) {
                     const res = await fetch('/api/drive', {
                         method: 'DELETE',
@@ -381,7 +411,7 @@ export default function AdminPage() {
                     });
                     if (!res.ok) throw new Error(`Drive DELETE returned ${res.status}`);
                 }
-                const creationId = (window as unknown as Record<string, string>)._e2eCreationId;
+                const creationId = (window as any)._e2eCreationId;
                 if (creationId) {
                     await fetch('/api/creations', {
                         method: 'DELETE',
@@ -392,7 +422,6 @@ export default function AdminPage() {
                 return;
             }
             default:
-                // Generic wait to simulate
                 await new Promise(r => setTimeout(r, 300));
                 return;
         }
@@ -402,16 +431,125 @@ export default function AdminPage() {
         setFlows(getInitialFlows());
     }
 
-    const tabs: { id: Tab; label: string; count?: number }[] = [
-        { id: 'overview', label: 'Overview' },
-        { id: 'services', label: 'Services', count: data?.services.length },
-        { id: 'env', label: 'Environment', count: data?.envVars.length },
-        { id: 'database', label: 'Database', count: dbOk },
-        { id: 'features', label: 'Features', count: data?.features.length },
-        { id: 'flows', label: 'Flow Tester' },
-        { id: 'e2e', label: 'E2E Clicks Audit' },
-    ];
+    // Dynamic key CRUD operations
+    const handleSaveConfig = async (key: string) => {
+        const val = keyInputs[key];
+        if (!val) return;
+        setSavingKeyName(key);
+        try {
+            await setSystemConfigMutation({ key, value: val, description: keyDescriptions[key] });
+            setKeyInputs(prev => ({ ...prev, [key]: '' }));
+            fetchHealth();
+        } catch (err) {
+            console.error('Failed to save config key:', err);
+        } finally {
+            setSavingKeyName(null);
+        }
+    };
 
+    const handleDeleteOverride = async (key: string) => {
+        if (!confirm(`Are you sure you want to delete the database override for ${key}? It will fall back to environment variables.`)) return;
+        try {
+            await deleteSystemConfigMutation({ key });
+            fetchHealth();
+        } catch (err) {
+            console.error('Failed to delete config override:', err);
+        }
+    };
+
+    // User credit adjustments
+    const handleAdjustCreditsSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedUserForCredits) return;
+        setIsAdjustingCredits(true);
+        try {
+            await updateUserCreditsMutation({
+                userId: selectedUserForCredits.user_id,
+                amount: creditAdjustAmount,
+                action: creditAdjustAction,
+                reason: creditAdjustReason,
+            });
+            setSelectedUserForCredits(null);
+            setCreditAdjustReason('Admin support grant');
+            setCreditAdjustAmount(1000);
+        } catch (err) {
+            console.error('Failed to adjust credits:', err);
+            alert('Failed to adjust credits: ' + (err as Error).message);
+        } finally {
+            setIsAdjustingCredits(false);
+        }
+    };
+
+    // Manual plan toggling
+    const handleTogglePlan = async (userId: string, currentPlan: string) => {
+        const nextPlan = currentPlan === 'pro' ? 'free' : 'pro';
+        if (!confirm(`Are you sure you want to change this user's plan to ${nextPlan.toUpperCase()}? This resets credits and allocations.`)) return;
+        try {
+            await updateUserPlanMutation({ userId, plan: nextPlan });
+        } catch (err) {
+            console.error('Failed to update plan:', err);
+        }
+    };
+
+    // Gating check
+    if (currentUser === undefined) {
+        return (
+            <div className="admin__loading-container">
+                <div className="admin__spinner" />
+                <div style={{ marginTop: 'var(--space-4)', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                    Loading Workspace Admin Context...
+                </div>
+            </div>
+        );
+    }
+
+    const whitelist = ["tiago@clarix.ai", "admin@clarix.ai", "tiagofrancisco96@gmail.com", "legal@clarix.ai"];
+    const isUserAdmin = currentUser && currentUser.email && whitelist.includes(currentUser.email.toLowerCase());
+
+    if (!currentUser || !isUserAdmin) {
+        return (
+            <div className="admin__access-denied">
+                <div className="admin__access-denied-card">
+                    <div className="admin__access-denied-icon">🛑</div>
+                    <h1 className="admin__access-denied-title">Access Denied</h1>
+                    <p className="admin__access-denied-text">
+                        This area is restricted to authenticated Clarix SRE Administrators only.
+                        Your account <strong>({currentUser?.email || "anonymous"})</strong> does not possess the security clearance required to access system registers or dynamic integration keys.
+                    </p>
+                    <Link href="/" className="admin__access-denied-link">
+                        Return to Home Workspace
+                    </Link>
+                </div>
+            </div>
+        );
+    }
+
+    // Counts
+    const serviceOk = data?.services.filter(s => s.status === 'ok').length ?? 0;
+    const serviceError = data?.services.filter(s => s.status === 'error').length ?? 0;
+    const featureReady = data?.features.filter(f => f.status === 'ready').length ?? 0;
+    const dbOk = data?.database.filter(d => d.status === 'ok').length ?? 0;
+
+    // Filtered Users list
+    const filteredUsers = listUsersResult?.filter((user: any) => {
+        const query = userSearchQuery.toLowerCase();
+        return (
+            user.name.toLowerCase().includes(query) ||
+            user.email.toLowerCase().includes(query) ||
+            user.user_id.toLowerCase().includes(query)
+        );
+    });
+
+    const activeTabLabel = {
+        overview: 'Overview',
+        users: 'User Management',
+        integrations: 'Integrations & Keys',
+        services: 'Services Diagnostics',
+        database: 'Database Tables',
+        features: 'Feature Matrix',
+        flows: 'Flow Tester',
+        e2e: 'E2E Clicks VM',
+    }[activeTab];
 
     return (
         <div className="admin">
@@ -419,15 +557,15 @@ export default function AdminPage() {
             <div className="admin__header">
                 <div className="admin__header-left">
                     <div className="admin__icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                         </svg>
                     </div>
                     <div>
-                        <h1 className="admin__title">Admin Panel</h1>
+                        <h1 className="admin__title">Admin Control Panel</h1>
                         <p className="admin__subtitle">
-                            System health · Feature status · Flow testing
-                            {data && <> · Last checked {new Date(data.timestamp).toLocaleTimeString()}</>}
+                            System Health · Integration Settings · User Management · Diagnostics
+                            {data && <> · Checked {new Date(data.timestamp).toLocaleTimeString()}</>}
                         </p>
                     </div>
                 </div>
@@ -437,7 +575,7 @@ export default function AdminPage() {
                     onClick={fetchHealth}
                     disabled={loading}
                 >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                         <polyline points="23 4 23 10 17 10" />
                         <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10" />
                     </svg>
@@ -451,160 +589,250 @@ export default function AdminPage() {
                     <div className="admin__stat-value">{serviceOk}</div>
                     <div className="admin__stat-label">Services Online</div>
                 </div>
-                <div className="admin__stat admin__stat--error">
-                    <div className="admin__stat-value">{serviceError}</div>
-                    <div className="admin__stat-label">Services Down</div>
+                <div className="admin__stat admin__stat--total">
+                    <div className="admin__stat-value">{listUsersResult ? listUsersResult.length : '...'}</div>
+                    <div className="admin__stat-label">Registered Users</div>
                 </div>
                 <div className="admin__stat admin__stat--warning">
-                    <div className="admin__stat-value">{featureReady}/{(data?.features.length ?? 0)}</div>
+                    <div className="admin__stat-value">{featureReady}/{(data?.features.length ?? 19)}</div>
                     <div className="admin__stat-label">Features Ready</div>
                 </div>
                 <div className="admin__stat admin__stat--total">
                     <div className="admin__stat-value">{dbOk}</div>
-                    <div className="admin__stat-label">DB Tables OK</div>
+                    <div className="admin__stat-label">Database Tables</div>
                 </div>
             </div>
 
             {/* Tabs */}
             <div className="admin__tabs">
-                {tabs.map(tab => (
-                    <button
-                        key={tab.id}
-                        className={`admin__tab ${activeTab === tab.id ? 'active' : ''}`}
-                        onClick={() => setActiveTab(tab.id)}
-                    >
-                        {tab.label}
-                        {tab.count !== undefined && <> ({tab.count})</>}
-                    </button>
-                ))}
+                <button className={`admin__tab ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => setActiveTab('overview')}>
+                    📊 Overview & Logs
+                </button>
+                <button className={`admin__tab ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>
+                    👥 Users ({listUsersResult ? listUsersResult.length : '...'})
+                </button>
+                <button className={`admin__tab ${activeTab === 'integrations' ? 'active' : ''}`} onClick={() => setActiveTab('integrations')}>
+                    🔑 Integrations & Keys
+                </button>
+                <button className={`admin__tab ${activeTab === 'flows' ? 'active' : ''}`} onClick={() => setActiveTab('flows')}>
+                    🧪 Flow Tester
+                </button>
+                <button className={`admin__tab ${activeTab === 'e2e' ? 'active' : ''}`} onClick={() => setActiveTab('e2e')}>
+                    🌐 Clicks VM
+                </button>
+                <button className={`admin__tab ${activeTab === 'services' ? 'active' : ''}`} onClick={() => setActiveTab('services')}>
+                    ⚙️ Raw Diagnostics
+                </button>
             </div>
 
-            {/* Loading state */}
-            {loading && !data && (
-                <div className="admin__section">
-                    {[...Array(4)].map((_, i) => (
-                        <div key={i} className="admin__skeleton admin__skeleton--row" />
-                    ))}
-                </div>
-            )}
-
             {/* Tab content */}
-            {data && (
-                <>
-                    {/* ── Overview ── */}
-                    {activeTab === 'overview' && (
-                        <>
-                            <div className="admin__section">
-                                <div className="admin__section-header">
-                                    <h2 className="admin__section-title">
-                                        🌐 External Services
-                                        <span className="admin__section-badge">{data.services.length}</span>
-                                    </h2>
-                                </div>
-                                <div className="admin__services">
-                                    {data.services.map(svc => (
-                                        <ServiceCard key={svc.name} service={svc} />
-                                    ))}
-                                </div>
+            
+            {/* ── Tab: Overview ── */}
+            {activeTab === 'overview' && (
+                <div className="admin__section animate-fade-in">
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--space-6)' }} className="admin__overview-grid">
+                        
+                        {/* Left: Active Telemetry SRE Console */}
+                        <div>
+                            <div className="admin__section-header">
+                                <h2 className="admin__section-title">
+                                    🛡️ Telemetry Incident Log & SRE Alerts Feed
+                                    {errorStats && (
+                                        <span className="admin__section-badge" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#f87171' }}>
+                                            {errorStats.total} total logs
+                                        </span>
+                                    )}
+                                </h2>
                             </div>
 
-                            <div className="admin__section">
-                                <div className="admin__section-header">
-                                    <h2 className="admin__section-title">
-                                        💾 Database Tables
-                                        <span className="admin__section-badge">{data.database.length}</span>
-                                    </h2>
+                            {errorStats && errorStats.total > 0 && (
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
+                                    <div className="admin__error-stat-card admin__error-stat-card--critical">
+                                        <div className="admin__error-stat-val">{errorStats.severity.critical}</div>
+                                        <div className="admin__error-stat-lbl">Critical</div>
+                                    </div>
+                                    <div className="admin__error-stat-card admin__error-stat-card--high">
+                                        <div className="admin__error-stat-val">{errorStats.severity.high}</div>
+                                        <div className="admin__error-stat-lbl">High Risk</div>
+                                    </div>
+                                    <div className="admin__error-stat-card admin__error-stat-card--medium">
+                                        <div className="admin__error-stat-val">{errorStats.severity.medium}</div>
+                                        <div className="admin__error-stat-lbl">Medium</div>
+                                    </div>
+                                    <div className="admin__error-stat-card admin__error-stat-card--total">
+                                        <div className="admin__error-stat-val">{errorStats.component.e2e}</div>
+                                        <div className="admin__error-stat-lbl">E2E VM Runs</div>
+                                    </div>
                                 </div>
-                                <div className="admin__db-grid">
-                                    {data.database.map(db => (
-                                        <div key={db.name} className={`admin__db-card admin__db-card--${db.status}`}>
-                                            <div className="admin__db-name">{db.name}</div>
-                                            {db.status === 'ok' ? (
-                                                <>
-                                                    <div className="admin__db-count">{db.rowCount?.toLocaleString()}</div>
-                                                    <div className="admin__db-label">rows</div>
-                                                </>
-                                            ) : (
-                                                <div className="admin__db-label" style={{ color: 'var(--accent-red)' }}>
-                                                    {db.message || 'Error'}
+                            )}
+
+                            <div className="admin__sre-feed">
+                                {!recentErrors ? (
+                                    <div className="admin__sre-loading">
+                                        <div className="admin__spinner admin__spinner--sm" />
+                                        Streaming telemetry...
+                                    </div>
+                                ) : recentErrors.length === 0 ? (
+                                    <div className="admin__sre-empty">
+                                        🔒 Telemetry incident feed clean. Zero warnings logged.
+                                    </div>
+                                ) : (
+                                    recentErrors.map((err) => (
+                                        <div key={err._id} className={`admin__sre-item admin__sre-item--${err.severity}`}>
+                                            <div className="admin__sre-header">
+                                                <span className={`admin__sre-badge admin__sre-badge--${err.severity}`}>
+                                                    {err.severity.toUpperCase()}
+                                                </span>
+                                                <span className="admin__sre-time">
+                                                    🗓️ {new Date(err.timestamp).toLocaleString()}
+                                                </span>
+                                            </div>
+                                            <div className="admin__sre-message">{err.message}</div>
+                                            <div className="admin__sre-details">
+                                                <div className="admin__sre-details-item">
+                                                    Component: <span>{err.component.toUpperCase()}</span>
+                                                </div>
+                                                {err.user_id && (
+                                                    <div className="admin__sre-details-item">
+                                                        User Context: <span>{err.user_id}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {err.stack && (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
+                                                    <button className="admin__sre-meta-btn" onClick={() => toggleMeta(err._id)}>
+                                                        {expandedMeta[err._id] ? '▼ Hide Trace Log' : '▶ Show Trace Log'}
+                                                    </button>
+                                                    {expandedMeta[err._id] && (
+                                                        <pre className="admin__sre-meta-body">{err.stack}</pre>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
-                                    ))}
-                                </div>
+                                    ))
+                                )}
                             </div>
+                        </div>
 
-                            <div className="admin__section">
-                                <div className="admin__section-header">
-                                    <h2 className="admin__section-title">
-                                        ⚡ Feature Status
-                                        <span className="admin__section-badge">
-                                            {featureReady} ready / {featureBlocked} blocked
-                                        </span>
-                                    </h2>
-                                </div>
-                                <div className="admin__features">
-                                    {data.features.map(feat => (
-                                        <FeatureCard key={`${feat.name}-${feat.route}`} feature={feat} />
-                                    ))}
-                                </div>
-                            </div>
-                        </>
-                    )}
-
-                    {/* ── Services Tab ── */}
-                    {activeTab === 'services' && (
-                        <div className="admin__section">
+                        {/* Right: Quick service cards summary */}
+                        <div>
                             <div className="admin__section-header">
-                                <h2 className="admin__section-title">
-                                    🌐 External Service Health
-                                    <span className="admin__section-badge">{data.services.length}</span>
-                                </h2>
+                                <h2 className="admin__section-title">🌐 Active Services</h2>
                             </div>
-                            <div className="admin__services">
-                                {data.services.map(svc => (
-                                    <ServiceCard key={svc.name} service={svc} />
+                            <div className="admin__services-mini">
+                                {data?.services.map(svc => (
+                                    <div key={svc.name} className="admin__service-mini-card">
+                                        <div className={`admin__service-mini-dot admin__service-mini-dot--${svc.status}`} />
+                                        <div className="admin__service-mini-info">
+                                            <div className="admin__service-mini-name">{svc.name}</div>
+                                            <div className="admin__service-mini-provider">{svc.provider || 'Core Component'}</div>
+                                        </div>
+                                        {svc.latency !== undefined && (
+                                            <div className="admin__service-mini-latency">{svc.latency}ms</div>
+                                        )}
+                                    </div>
                                 ))}
                             </div>
                         </div>
-                    )}
 
-                    {/* ── Environment Tab ── */}
-                    {activeTab === 'env' && (
-                        <div className="admin__section">
-                            <div className="admin__section-header">
-                                <h2 className="admin__section-title">
-                                    🔑 Environment Variables
-                                    <span className="admin__section-badge">
-                                        {data.envVars.filter(e => e.set).length}/{data.envVars.length} configured
-                                    </span>
-                                </h2>
-                            </div>
-                            <table className="admin__env-table">
+                    </div>
+                </div>
+            )}
+
+            {/* ── Tab: User Management ── */}
+            {activeTab === 'users' && (
+                <div className="admin__section animate-fade-in">
+                    <div className="admin__section-header">
+                        <h2 className="admin__section-title">👥 User Workspace Registry</h2>
+                        <div className="admin__user-search-wrapper">
+                            <input
+                                type="text"
+                                className="admin__user-search"
+                                placeholder="Search by name, email, or user_id..."
+                                value={userSearchQuery}
+                                onChange={(e) => setUserSearchQuery(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    {!listUsersResult ? (
+                        <div style={{ padding: '36px', textAlign: 'center' }}>
+                            <div className="admin__spinner" style={{ margin: '0 auto' }} />
+                            <div style={{ marginTop: '12px', color: 'var(--text-muted)' }}>Fetching User Profiles...</div>
+                        </div>
+                    ) : filteredUsers?.length === 0 ? (
+                        <div className="admin__users-empty">
+                            🔍 No users match your search query. Try another term.
+                        </div>
+                    ) : (
+                        <div className="admin__users-table-container">
+                            <table className="admin__users-table">
                                 <thead>
                                     <tr>
-                                        <th>Variable</th>
-                                        <th>Status</th>
-                                        <th>Value</th>
-                                        <th>Category</th>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>User ID</th>
+                                        <th>Active Plan</th>
+                                        <th>Credits Balance</th>
+                                        <th>Lifetime Usage</th>
+                                        <th>Registration</th>
+                                        <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {data.envVars.map(env => (
-                                        <tr key={env.name}>
+                                    {filteredUsers?.map((user: any) => (
+                                        <tr key={user.user_id}>
                                             <td>
-                                                <span className="admin__env-name">{env.name}</span>
+                                                <div className="admin__user-profile-cell">
+                                                    {user.image ? (
+                                                        <img src={user.image} alt="" className="admin__user-avatar" />
+                                                    ) : (
+                                                        <div className="admin__user-avatar-placeholder">
+                                                            {user.name.substring(0, 1).toUpperCase()}
+                                                        </div>
+                                                    )}
+                                                    <span className="admin__user-name">{user.name}</span>
+                                                </div>
                                             </td>
+                                            <td><span className="admin__user-email">{user.email}</span></td>
+                                            <td><code className="admin__user-mono">{user.user_id.substring(0, 10)}...</code></td>
                                             <td>
-                                                <span className={`admin__env-status admin__env-status--${env.set ? 'set' : 'missing'}`}>
-                                                    {env.set ? '● Set' : '○ Missing'}
+                                                <span className={`admin__user-plan-badge admin__user-plan-badge--${user.plan}`}>
+                                                    {user.plan.toUpperCase()}
                                                 </span>
                                             </td>
                                             <td>
-                                                <span className="admin__env-value">{env.masked}</span>
+                                                <span className="admin__user-balance-value">
+                                                    {user.balance.toLocaleString()}
+                                                </span>
+                                                <span className="admin__user-balance-lbl"> credits</span>
                                             </td>
                                             <td>
-                                                <span className="admin__env-category">{env.category}</span>
+                                                <span className="admin__user-usage-value">
+                                                    {user.lifetime_used.toLocaleString()}
+                                                </span>
+                                                <span className="admin__user-balance-lbl"> used</span>
+                                            </td>
+                                            <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                                                {new Date(user.createdAt).toLocaleDateString()}
+                                            </td>
+                                            <td>
+                                                <div className="admin__user-actions">
+                                                    <button 
+                                                        className="admin__user-action-btn admin__user-action-btn--credits"
+                                                        title="Adjust Credits"
+                                                        onClick={() => setSelectedUserForCredits(user)}
+                                                    >
+                                                        💰 Adjust Credits
+                                                    </button>
+                                                    <button 
+                                                        className="admin__user-action-btn admin__user-action-btn--plan"
+                                                        title="Toggle Plan manually"
+                                                        onClick={() => handleTogglePlan(user.user_id, user.plan)}
+                                                    >
+                                                        🔄 Toggle Plan
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -612,24 +840,257 @@ export default function AdminPage() {
                             </table>
                         </div>
                     )}
+                </div>
+            )}
 
-                    {/* ── Database Tab ── */}
-                    {activeTab === 'database' && (
-                        <div className="admin__section">
+            {/* ── Tab: Integrations & API Keys ── */}
+            {activeTab === 'integrations' && (
+                <div className="admin__section animate-fade-in">
+                    <div className="admin__section-header">
+                        <h2 className="admin__section-title">🔑 Core Integrations & Runtime API Key Overrides</h2>
+                    </div>
+
+                    <div style={{ background: 'rgba(212, 168, 67, 0.05)', border: '1px solid rgba(212, 168, 67, 0.15)', borderRadius: '8px', padding: '16px', marginBottom: '24px', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                        💡 <strong>Dynamic Overrides System</strong>: Setup or override API keys at runtime securely. The system automatically fetches configuration variables from the Convex Database override layer first. If no override exists, it gracefully falls back to the system environment variables (`.env.local` or hosting provider settings).
+                    </div>
+
+                    <div className="admin__integrations-grid">
+                        
+                        {/* LLMs & AI Engines */}
+                        <div className="admin__integration-card">
+                            <h3 className="admin__integration-card-title">🤖 LLMs & Core AI Engine Prompters</h3>
+                            <div className="admin__integration-keys">
+                                        {['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GOOGLE_AI_API_KEY', 'DEEPSEEK_API_KEY'].map(key => (
+                                            <KeyInputRow
+                                                key={key}
+                                                keyName={key}
+                                                description={keyDescriptions[key]}
+                                                envCheck={data?.envVars.find(e => e.name === key)}
+                                                dbCheck={systemConfigs?.find((c: any) => c.key === key)}
+                                                inputValue={keyInputs[key] || ''}
+                                                onInputChange={(val) => setKeyInputs(prev => ({ ...prev, [key]: val }))}
+                                                onSave={() => handleSaveConfig(key)}
+                                                onDelete={() => handleDeleteOverride(key)}
+                                                isSaving={savingKeyName === key}
+                                            />
+                                        ))}
+                            </div>
+                        </div>
+
+                        {/* Media Creators & Gen Generators */}
+                        <div className="admin__integration-card">
+                            <h3 className="admin__integration-card-title">🎨 Visual Media & Voice Generative Services</h3>
+                            <div className="admin__integration-keys">
+                                {['FAL_KEY', 'SUNO_API_KEY', 'ELEVENLABS_API_KEY'].map(key => (
+                                    <KeyInputRow
+                                        key={key}
+                                        keyName={key}
+                                        description={keyDescriptions[key]}
+                                        envCheck={data?.envVars.find(e => e.name === key)}
+                                        dbCheck={systemConfigs?.find((c: any) => c.key === key)}
+                                        inputValue={keyInputs[key] || ''}
+                                        onInputChange={(val) => setKeyInputs(prev => ({ ...prev, [key]: val }))}
+                                        onSave={() => handleSaveConfig(key)}
+                                        onDelete={() => handleDeleteOverride(key)}
+                                        isSaving={savingKeyName === key}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Payments & Billing Engine */}
+                        <div className="admin__integration-card">
+                            <h3 className="admin__integration-card-title">💳 Payments & Billing processor (Stripe)</h3>
+                            <div className="admin__integration-keys">
+                                {['STRIPE_SECRET_KEY', 'STRIPE_PUBLISHABLE_KEY', 'STRIPE_WEBHOOK_SECRET'].map(key => (
+                                    <KeyInputRow
+                                        key={key}
+                                        keyName={key}
+                                        description={keyDescriptions[key]}
+                                        envCheck={data?.envVars.find(e => e.name === key)}
+                                        dbCheck={systemConfigs?.find((c: any) => c.key === key)}
+                                        inputValue={keyInputs[key] || ''}
+                                        onInputChange={(val) => setKeyInputs(prev => ({ ...prev, [key]: val }))}
+                                        onSave={() => handleSaveConfig(key)}
+                                        onDelete={() => handleDeleteOverride(key)}
+                                        isSaving={savingKeyName === key}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Platform Auth Secure pre-shared keys */}
+                        <div className="admin__integration-card">
+                            <h3 className="admin__integration-card-title">🔐 Authentication Pre-Shared System Secrets</h3>
+                            <div className="admin__integration-keys">
+                                {['BETTER_AUTH_SECRET'].map(key => (
+                                    <KeyInputRow
+                                        key={key}
+                                        keyName={key}
+                                        description={keyDescriptions[key]}
+                                        envCheck={data?.envVars.find(e => e.name === key)}
+                                        dbCheck={systemConfigs?.find((c: any) => c.key === key)}
+                                        inputValue={keyInputs[key] || ''}
+                                        onInputChange={(val) => setKeyInputs(prev => ({ ...prev, [key]: val }))}
+                                        onSave={() => handleSaveConfig(key)}
+                                        onDelete={() => handleDeleteOverride(key)}
+                                        isSaving={savingKeyName === key}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            )}
+
+            {/* ── Tab: Flow Tester ── */}
+            {activeTab === 'flows' && (
+                <div className="admin__section animate-fade-in">
+                    <div className="admin__section-header">
+                        <h2 className="admin__section-title">🧪 Step-by-Step E2E Pipeline Flow Tester</h2>
+                        <button className="admin__refresh-btn" onClick={resetFlows} disabled={!!runningFlow}>
+                            Reset Steps
+                        </button>
+                    </div>
+
+                    {flows.map(flow => (
+                        <div key={flow.id} className="admin__tester" style={{ marginBottom: 'var(--space-4)' }}>
+                            <div className="admin__tester-header">
+                                <div>
+                                    <div className="admin__tester-title">{flow.name}</div>
+                                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                        {flow.description}
+                                    </div>
+                                </div>
+                                <button className="admin__tester-run" onClick={() => runFlow(flow.id)} disabled={!!runningFlow}>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                        <polygon points="5 3 19 12 5 21 5 3" />
+                                    </svg>
+                                    {runningFlow === flow.id ? 'Testing...' : 'Run Pipeline'}
+                                </button>
+                            </div>
+                            <div className="admin__tester-body">
+                                <div className="admin__test-steps">
+                                    {flow.steps.map((step) => (
+                                        <div key={step.id} className={`admin__test-step admin__test-step--${step.status}`}>
+                                            <div className="admin__test-step-icon">
+                                                {step.status === 'pending' && '○'}
+                                                {step.status === 'running' && '◉'}
+                                                {step.status === 'pass' && '✓'}
+                                                {step.status === 'fail' && '✗'}
+                                            </div>
+                                            <div className="admin__test-step-name">
+                                                {step.name}
+                                                {step.error && (
+                                                    <div style={{ fontSize: '0.7rem', color: 'var(--accent-red)', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
+                                                        {step.error}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {step.time !== undefined && (
+                                                <div className="admin__test-step-time">{step.time}ms</div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* ── Tab: E2E Clicks VM ── */}
+            {activeTab === 'e2e' && (
+                <div className="admin__e2e-container animate-fade-in">
+                    <div className="admin__section-header">
+                        <h2 className="admin__section-title">🌐 On-Demand Playwright E2E Clicks Audit</h2>
+                    </div>
+
+                    <div className="admin__e2e-card">
+                        <div style={{ fontSize: '0.92rem', color: 'var(--text-secondary)', marginBottom: 'var(--space-4)' }}>
+                            Launch headless browser clicks VM triggers on a GitHub Actions runner serverless virtual machine to test and verify every button, tool router, and filesystem connection in the workspace.
+                        </div>
+                        <div className="admin__e2e-control-panel">
+                            <div className="admin__e2e-input-wrapper">
+                                <input
+                                    type="text"
+                                    className="admin__e2e-input"
+                                    value={targetUrl}
+                                    onChange={(e) => setTargetUrl(e.target.value)}
+                                    placeholder="Target Site URL (e.g. https://clarix.ai)"
+                                    disabled={dispatchStatus === 'running'}
+                                />
+                            </div>
+                            <button
+                                className="admin__e2e-trigger-btn"
+                                onClick={handleTriggerE2EAudit}
+                                disabled={dispatchStatus === 'running' || !targetUrl}
+                            >
+                                {dispatchStatus === 'running' ? 'Running...' : '⚡ Run Clicks VM'}
+                            </button>
+                        </div>
+
+                        {dispatchStatus !== 'pending' && (
+                            <div style={{ marginTop: 'var(--space-4)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div className={`admin__e2e-indicator-dot admin__e2e-indicator-dot--${dispatchStatus}`} />
+                                <span style={{
+                                    fontSize: '0.82rem',
+                                    fontWeight: '600',
+                                    color: dispatchStatus === 'success' ? 'var(--accent-green)' : dispatchStatus === 'error' ? 'var(--accent-red)' : 'var(--accent-gold)'
+                                }}>
+                                    {dispatchMessage}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* ── Tab: Raw Diagnostics (Raw tabs combined) ── */}
+            {['services', 'database', 'features'].includes(activeTab) && (
+                <div className="admin__section animate-fade-in">
+                    
+                    {/* Services */}
+                    {activeTab === 'services' && (
+                        <>
                             <div className="admin__section-header">
-                                <h2 className="admin__section-title">
-                                    💾 Database Tables
-                                    <span className="admin__section-badge">{data.database.length} tables</span>
-                                </h2>
+                                <h2 className="admin__section-title">🌐 Live Services Status registers</h2>
+                            </div>
+                            <div className="admin__services">
+                                {data?.services.map(svc => (
+                                    <div key={svc.name} className="admin__service">
+                                        <div className={`admin__service-indicator admin__service-indicator--${svc.status}`} />
+                                        <div className="admin__service-info">
+                                            <div className="admin__service-name">{svc.name}</div>
+                                            {svc.provider && <div className="admin__service-provider">{svc.provider}</div>}
+                                            {svc.message && <div className="admin__service-message">{svc.message}</div>}
+                                        </div>
+                                        {svc.latency !== undefined && (
+                                            <div className={`admin__service-latency admin__service-latency--${svc.latency < 500 ? 'fast' : 'normal'}`}>
+                                                {svc.latency}ms
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    )}
+
+                    {/* Database */}
+                    {activeTab === 'database' && (
+                        <>
+                            <div className="admin__section-header">
+                                <h2 className="admin__section-title">💾 Active Schema registers</h2>
                             </div>
                             <div className="admin__db-grid">
-                                {data.database.map(db => (
+                                {data?.database.map(db => (
                                     <div key={db.name} className={`admin__db-card admin__db-card--${db.status}`}>
                                         <div className="admin__db-name">{db.name}</div>
                                         {db.status === 'ok' ? (
                                             <>
-                                                <div className="admin__db-count">{db.rowCount?.toLocaleString()}</div>
-                                                <div className="admin__db-label">rows</div>
+                                                <div className="admin__db-count">{db.rowCount?.toLocaleString() || '1'}</div>
+                                                <div className="admin__db-label">Active Connection</div>
                                             </>
                                         ) : (
                                             <div className="admin__db-label" style={{ color: 'var(--accent-red)' }}>
@@ -639,333 +1100,202 @@ export default function AdminPage() {
                                     </div>
                                 ))}
                             </div>
-                        </div>
+                        </>
                     )}
 
-                    {/* ── Features Tab ── */}
+                    {/* Features */}
                     {activeTab === 'features' && (
-                        <div className="admin__section">
+                        <>
                             <div className="admin__section-header">
-                                <h2 className="admin__section-title">
-                                    ⚡ Feature Matrix
-                                    <span className="admin__section-badge">
-                                        {featureReady} ready / {featureBlocked} blocked
-                                    </span>
-                                </h2>
+                                <h2 className="admin__section-title">⚡ Feature Matrix</h2>
                             </div>
                             <div className="admin__features">
-                                {data.features.map(feat => (
-                                    <FeatureCard key={`${feat.name}-${feat.route}`} feature={feat} />
+                                {data?.features.map(feat => (
+                                    <Link href={feat.route} key={`${feat.name}-${feat.route}`} className="admin__feature">
+                                        <div className={`admin__feature-status admin__feature-status--${feat.status}`}>
+                                            {feat.status === 'ready' ? '✓' : '✗'}
+                                        </div>
+                                        <div className="admin__feature-info">
+                                            <div className="admin__feature-name">{feat.name}</div>
+                                            {feat.deps.length > 0 && <div className="admin__feature-deps">{feat.deps.join(', ')}</div>}
+                                        </div>
+                                        <span className="admin__feature-category">{feat.category}</span>
+                                    </Link>
                                 ))}
                             </div>
-                        </div>
+                        </>
                     )}
 
-                    {/* ── Flow Tester Tab ── */}
-                    {activeTab === 'flows' && (
-                        <div className="admin__section">
-                            <div className="admin__section-header">
-                                <h2 className="admin__section-title">
-                                    🧪 End-to-End Flow Tester
-                                </h2>
-                                <button
-                                    className="admin__refresh-btn"
-                                    onClick={resetFlows}
-                                    disabled={!!runningFlow}
+                </div>
+            )}
+
+            {/* ── Transaction modal: Credit Adjuster ── */}
+            {selectedUserForCredits && (
+                <div className="admin__modal-overlay">
+                    <div className="admin__modal-card animate-fade-in">
+                        <div className="admin__modal-header">
+                            <h3 className="admin__modal-title">💰 Credit Balance Adjuster</h3>
+                            <button className="admin__modal-close" onClick={() => setSelectedUserForCredits(null)}>×</button>
+                        </div>
+                        <form onSubmit={handleAdjustCreditsSubmit} className="admin__modal-form">
+                            
+                            <div className="admin__modal-user-info">
+                                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                    Adjusting credits for <strong>{selectedUserForCredits.name}</strong> ({selectedUserForCredits.email})
+                                </div>
+                                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                                    Current balance: <strong>{selectedUserForCredits.balance.toLocaleString()}</strong> credits
+                                </div>
+                            </div>
+
+                            <div className="admin__form-group">
+                                <label className="admin__form-label">Action Type</label>
+                                <select 
+                                    className="admin__form-select"
+                                    value={creditAdjustAction}
+                                    onChange={(e: any) => setCreditAdjustAction(e.target.value)}
                                 >
-                                    Reset All
+                                    <option value="add">➕ Add Credits (Incremental grant)</option>
+                                    <option value="deduct">➖ Deduct Credits (Manual refund/usage charge)</option>
+                                    <option value="set">⚙️ Set Balance (Direct absolute override)</option>
+                                </select>
+                            </div>
+
+                            <div className="admin__form-group">
+                                <label className="admin__form-label">Credit Amount</label>
+                                <input
+                                    type="number"
+                                    className="admin__form-input"
+                                    value={creditAdjustAmount}
+                                    onChange={(e) => setCreditAdjustAmount(parseInt(e.target.value) || 0)}
+                                    min={0}
+                                    required
+                                />
+                            </div>
+
+                            <div className="admin__form-group">
+                                <label className="admin__form-label">Reason Log (required for auditing)</label>
+                                <input
+                                    type="text"
+                                    className="admin__form-input"
+                                    value={creditAdjustReason}
+                                    onChange={(e) => setCreditAdjustReason(e.target.value)}
+                                    placeholder="E.g., Customer support gesture, test credits, reset"
+                                    required
+                                />
+                            </div>
+
+                            <div className="admin__modal-actions">
+                                <button 
+                                    type="button" 
+                                    className="admin__modal-btn admin__modal-btn--cancel"
+                                    onClick={() => setSelectedUserForCredits(null)}
+                                    disabled={isAdjustingCredits}
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    type="submit" 
+                                    className="admin__modal-btn admin__modal-btn--submit"
+                                    disabled={isAdjustingCredits || creditAdjustAmount <= 0 || !creditAdjustReason}
+                                >
+                                    {isAdjustingCredits ? 'Adjusting...' : 'Confirm Transaction'}
                                 </button>
                             </div>
 
-                            {flows.map(flow => (
-                                <div key={flow.id} className="admin__tester" style={{ marginBottom: 'var(--space-4)' }}>
-                                    <div className="admin__tester-header">
-                                        <div>
-                                            <div className="admin__tester-title">{flow.name}</div>
-                                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                                                {flow.description}
-                                            </div>
-                                        </div>
-                                        <button
-                                            className="admin__tester-run"
-                                            onClick={() => runFlow(flow.id)}
-                                            disabled={!!runningFlow}
-                                        >
-                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                                                <polygon points="5 3 19 12 5 21 5 3" />
-                                            </svg>
-                                            {runningFlow === flow.id ? 'Running...' : 'Run Test'}
-                                        </button>
-                                    </div>
-                                    <div className="admin__tester-body">
-                                        <div className="admin__test-steps">
-                                            {flow.steps.map((step) => (
-                                                <div key={step.id} className={`admin__test-step admin__test-step--${step.status}`}>
-                                                    <div className="admin__test-step-icon">
-                                                        {step.status === 'pending' && '○'}
-                                                        {step.status === 'running' && '◉'}
-                                                        {step.status === 'pass' && '✓'}
-                                                        {step.status === 'fail' && '✗'}
-                                                    </div>
-                                                    <div className="admin__test-step-name">
-                                                        {step.name}
-                                                        {step.error && (
-                                                            <div style={{ fontSize: '0.7rem', color: 'var(--accent-red)', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-                                                                {step.error}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    {step.time !== undefined && (
-                                                        <div className="admin__test-step-time">{step.time}ms</div>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                    {/* ── E2E Clicks Audit Tab ── */}
-                    {activeTab === 'e2e' && (
-                        <div className="admin__e2e-container">
-                            <div className="admin__section-header">
-                                <h2 className="admin__section-title">
-                                    🌐 On-Demand Playwright E2E Clicks Audit
-                                </h2>
-                            </div>
-
-                            {/* Dispatch Card */}
-                            <div className="admin__e2e-card">
-                                <div style={{ fontSize: '0.92rem', color: 'var(--text-secondary)', marginBottom: 'var(--space-4)' }}>
-                                    Launch on-demand automated headless browser click runs on a GitHub Actions serverless virtual machine to test and verify every button, function, and workspace route.
-                                </div>
-                                <div className="admin__e2e-control-panel">
-                                    <div className="admin__e2e-input-wrapper">
-                                        <input
-                                            type="text"
-                                            className="admin__e2e-input"
-                                            value={targetUrl}
-                                            onChange={(e) => setTargetUrl(e.target.value)}
-                                            placeholder="Target Site URL (e.g. https://clarix.ai)"
-                                            disabled={dispatchStatus === 'running'}
-                                        />
-                                    </div>
-                                    <button
-                                        className="admin__e2e-trigger-btn"
-                                        onClick={handleTriggerE2EAudit}
-                                        disabled={dispatchStatus === 'running' || !targetUrl}
-                                    >
-                                        {dispatchStatus === 'running' ? (
-                                            <>
-                                                <svg className="admin__refresh-btn loading" style={{ width: '14px', height: '14px', marginRight: '6px', animation: 'spin 1s linear infinite' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                                                    <polyline points="23 4 23 10 17 10" />
-                                                    <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10" />
-                                                </svg>
-                                                Running...
-                                            </>
-                                        ) : (
-                                            <>⚡ Run Playwright Clicks</>
-                                        )}
-                                    </button>
-                                </div>
-
-                                {dispatchStatus !== 'pending' && (
-                                    <div style={{ marginTop: 'var(--space-4)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <div className={`admin__e2e-indicator-dot admin__e2e-indicator-dot--${dispatchStatus}`} />
-                                        <span style={{
-                                            fontSize: '0.82rem',
-                                            fontWeight: '600',
-                                            color: dispatchStatus === 'success' ? 'var(--accent-green)' : dispatchStatus === 'error' ? 'var(--accent-red)' : 'var(--accent-gold)'
-                                        }}>
-                                            {dispatchMessage}
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Config Instructions Accordion */}
-                            <div className="admin__e2e-guide-section">
-                                <div className="admin__e2e-guide-header" onClick={() => setIsGuideOpen(!isGuideOpen)}>
-                                    <span>⚙️ E2E Click Audit Setup Instructions & Credentials</span>
-                                    <span>{isGuideOpen ? '▲ Hide' : '▼ Expand Guide'}</span>
-                                </div>
-                                {isGuideOpen && (
-                                    <div className="admin__e2e-guide-body">
-                                        <div className="admin__e2e-guide-steps">
-                                            <div>
-                                                <strong>1. Generate a Fine-Grained GitHub Personal Access Token (PAT):</strong>
-                                                <div style={{ marginTop: '4px' }}>
-                                                    Go to GitHub Settings → Developer Settings → Personal Access Tokens → Fine-Grained Tokens. Select your repository and grant <strong>Read and Write</strong> access to <strong>Actions</strong> and <strong>Workflows</strong> permissions.
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <strong>2. Save Credentials Securely in Convex Dashboard Settings:</strong>
-                                                <div style={{ marginTop: '4px' }}>
-                                                    Open your Convex project dashboard, click on Settings → Environment Variables, and add the following variables:
-                                                </div>
-                                                <div className="admin__e2e-guide-step-code">
-                                                    GITHUB_PAT=github_pat_... (Your Fine-Grained Personal Access Token)<br />
-                                                    GITHUB_OWNER=your-username-or-org<br />
-                                                    GITHUB_REPO=your-repository-name
-                                                </div>
-                                            </div>
-                                            <div style={{ borderLeft: '3px solid var(--accent-gold)', paddingLeft: '12px', fontStyle: 'italic', fontSize: '0.78rem' }}>
-                                                Note: Once configured, audits can run twice a day automatically on schedule, or manual triggers from this health dashboard will bootstrap VM runners immediately.
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Persistent Telemetry Error Console */}
-                            <div className="admin__section" style={{ marginTop: 'var(--space-4)' }}>
-                                <div className="admin__section-header">
-                                    <h2 className="admin__section-title">
-                                        🛡️ Persistent SRE Error Logs & Live Telemetry Feed
-                                        {errorStats && (
-                                            <span className="admin__section-badge" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#f87171' }}>
-                                                {errorStats.total} logged incidents
-                                            </span>
-                                        )}
-                                    </h2>
-                                </div>
-
-                                {/* Summary Sub-grid */}
-                                {errorStats && errorStats.total > 0 && (
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
-                                        <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)', borderRadius: '6px', padding: '10px', textAlign: 'center' }}>
-                                            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#f87171' }}>{errorStats.severity.critical}</div>
-                                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Critical</div>
-                                        </div>
-                                        <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)', borderRadius: '6px', padding: '10px', textAlign: 'center' }}>
-                                            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fb923c' }}>{errorStats.severity.high}</div>
-                                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>High Risk</div>
-                                        </div>
-                                        <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)', borderRadius: '6px', padding: '10px', textAlign: 'center' }}>
-                                            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fbbf24' }}>{errorStats.severity.medium}</div>
-                                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Medium</div>
-                                        </div>
-                                        <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)', borderRadius: '6px', padding: '10px', textAlign: 'center' }}>
-                                            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-secondary)' }}>{errorStats.component.e2e}</div>
-                                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>E2E Audits</div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div className="admin__sre-feed">
-                                    {!recentErrors ? (
-                                        <div style={{ display: 'flex', justifyContent: 'center', padding: '24px' }}>
-                                            <div className="admin__refresh-btn loading" style={{ border: 'none', background: 'transparent' }}>
-                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-                                                Loading telemetry...
-                                            </div>
-                                        </div>
-                                    ) : recentErrors.length === 0 ? (
-                                        <div style={{ background: 'var(--bg-surface)', border: '1px dashed var(--border-subtle)', padding: '36px', borderRadius: 'var(--radius-md)', textAlign: 'center', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                                            🔒 Workspace Telemetry Log is clean. Zero incidents recorded.
-                                        </div>
-                                    ) : (
-                                        recentErrors.map((err) => (
-                                            <div key={err._id} className={`admin__sre-item admin__sre-item--${err.severity}`}>
-                                                <div className="admin__sre-header">
-                                                    <span className={`admin__sre-badge admin__sre-badge--${err.severity}`}>
-                                                        {err.severity}
-                                                    </span>
-                                                    <span className="admin__sre-time">
-                                                        🗓️ {new Date(err.timestamp).toLocaleString()}
-                                                    </span>
-                                                </div>
-                                                <div className="admin__sre-message">{err.message}</div>
-                                                <div className="admin__sre-details">
-                                                    <div className="admin__sre-details-item">
-                                                        Component: <span>{err.component.toUpperCase()}</span>
-                                                    </div>
-                                                    {err.user_id && (
-                                                        <div className="admin__sre-details-item">
-                                                            User Context: <span>{err.user_id}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                {err.stack && (
-                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                                        <button className="admin__sre-meta-btn" onClick={() => toggleMeta(err._id)}>
-                                                            {expandedMeta[err._id] ? '▼ Hide Trace Log' : '▶ Show Trace Log'}
-                                                        </button>
-                                                        {expandedMeta[err._id] && (
-                                                            <pre className="admin__sre-meta-body">{err.stack}</pre>
-                                                        )}
-                                                    </div>
-                                                )}
-                                                {err.metadata && (
-                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                                        <button className="admin__sre-meta-btn" onClick={() => toggleMeta(`${err._id}-meta`)}>
-                                                            {expandedMeta[`${err._id}-meta`] ? '▼ Hide Metadata JSON' : '▶ Show Metadata JSON'}
-                                                        </button>
-                                                        {expandedMeta[`${err._id}-meta`] && (
-                                                            <pre className="admin__sre-meta-body">{formatMetadata(err.metadata)}</pre>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ))
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </>
+                        </form>
+                    </div>
+                </div>
             )}
+
         </div>
     );
 }
 
-/* ── Sub-components ── */
+/* ── Inline Row Component for Integration keys ── */
+interface KeyInputRowProps {
+    keyName: string;
+    description: string;
+    envCheck?: EnvCheck;
+    dbCheck?: { masked: string; updated_at: number };
+    inputValue: string;
+    onInputChange: (val: string) => void;
+    onSave: () => void;
+    onDelete: () => void;
+    isSaving: boolean;
+}
 
-function ServiceCard({ service }: { service: ServiceCheck }) {
+function KeyInputRow({
+    keyName,
+    description,
+    envCheck,
+    dbCheck,
+    inputValue,
+    onInputChange,
+    onSave,
+    onDelete,
+    isSaving
+}: KeyInputRowProps) {
+    const isConfiguredInEnv = envCheck?.set;
+    const isOverriddenInDb = !!dbCheck;
+    
+    let statusClass = 'missing';
+    let statusLabel = 'Missing Key';
+    
+    if (isConfiguredInEnv) {
+        statusClass = 'env';
+        statusLabel = 'Env Variable Set';
+    }
+    if (isOverriddenInDb) {
+        statusClass = 'db';
+        statusLabel = 'DB Override Set';
+    }
+
     return (
-        <div className="admin__service">
-            <div className={`admin__service-indicator admin__service-indicator--${service.status}`} />
-            <div className="admin__service-info">
-                <div className="admin__service-name">{service.name}</div>
-                {service.provider && (
-                    <div className="admin__service-provider">{service.provider}</div>
-                )}
-                {service.message && (
-                    <div className="admin__service-message">{service.message}</div>
+        <div className="admin__integration-row">
+            <div className="admin__integration-row-header">
+                <div>
+                    <code className="admin__integration-row-name">{keyName}</code>
+                    <div className="admin__integration-row-desc">{description}</div>
+                </div>
+                <span className={`admin__integration-row-status admin__integration-row-status--${statusClass}`}>
+                    {statusLabel}
+                </span>
+            </div>
+
+            <div className="admin__integration-row-inputs">
+                <input
+                    type="password"
+                    className="admin__integration-row-input"
+                    placeholder={isOverriddenInDb ? `${dbCheck.masked} (Override)` : isConfiguredInEnv ? '•••••••• (Env Variable)' : 'Enter API Key value...'}
+                    value={inputValue}
+                    onChange={(e) => onInputChange(e.target.value)}
+                />
+                
+                <button
+                    className="admin__integration-row-btn admin__integration-row-btn--save"
+                    onClick={onSave}
+                    disabled={isSaving || !inputValue}
+                >
+                    {isSaving ? 'Saving...' : 'Save to DB'}
+                </button>
+
+                {isOverriddenInDb && (
+                    <button
+                        className="admin__integration-row-btn admin__integration-row-btn--delete"
+                        onClick={onDelete}
+                    >
+                        Delete Override
+                    </button>
                 )}
             </div>
-            {service.latency !== undefined && (
-                <div className={`admin__service-latency admin__service-latency--${service.latency < 500 ? 'fast' : service.latency < 2000 ? 'normal' : 'slow'}`}>
-                    {service.latency}ms
+            
+            {dbCheck && (
+                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '4px', textAlign: 'right' }}>
+                    Override updated: {new Date(dbCheck.updated_at).toLocaleString()}
                 </div>
             )}
         </div>
-    );
-}
-
-function FeatureCard({ feature }: { feature: FeatureCheck }) {
-    return (
-        <Link href={feature.route} className="admin__feature">
-            <div className={`admin__feature-status admin__feature-status--${feature.status}`}>
-                {feature.status === 'ready' ? '✓' : '✗'}
-            </div>
-            <div className="admin__feature-info">
-                <div className="admin__feature-name">{feature.name}</div>
-                {feature.deps.length > 0 && (
-                    <div className="admin__feature-deps">
-                        {feature.deps.join(', ')}
-                    </div>
-                )}
-            </div>
-            <span className="admin__feature-category">{feature.category}</span>
-            <div className="admin__feature-arrow">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                    <polyline points="9 18 15 12 9 6" />
-                </svg>
-            </div>
-        </Link>
     );
 }
 
@@ -974,56 +1304,56 @@ function getInitialFlows(): TestFlow[] {
     return [
         {
             id: 'auth-flow',
-            name: 'Authentication Flow',
-            description: 'Verify session, cookies, and auth API are working',
+            name: 'Authentication Pipeline Flow',
+            description: 'Verify active secure sessions, Better Auth cookies, and admin credentials',
             steps: [
-                { id: 'auth-check', name: 'Check active session', status: 'pending' },
-                { id: 'settings-page', name: 'Load settings page', status: 'pending' },
+                { id: 'auth-check', name: 'Verify authenticated workspace session', status: 'pending' },
+                { id: 'settings-page', name: 'Assert configurations page loads successfully', status: 'pending' },
             ],
         },
         {
             id: 'workspace-flow',
-            name: 'Workspace Core',
-            description: 'Test Drive, Notifications, and Creations APIs',
+            name: 'Workspace Core Filesystems',
+            description: 'Assert virtual Drive API lists files, notifications dispatch, and user creations list',
             steps: [
-                { id: 'auth-check', name: 'Verify authentication', status: 'pending' },
-                { id: 'drive-list', name: 'List Drive files (GET /api/drive)', status: 'pending' },
-                { id: 'notifications-list', name: 'List Notifications (GET /api/notifications)', status: 'pending' },
-                { id: 'creations-list', name: 'List Creations (GET /api/creations?tool=chat)', status: 'pending' },
-                { id: 'drive-page', name: 'Load Drive page', status: 'pending' },
+                { id: 'auth-check', name: 'Confirm SRE identification context', status: 'pending' },
+                { id: 'drive-list', name: 'Query Drive lists (GET /api/drive)', status: 'pending' },
+                { id: 'notifications-list', name: 'Query notification streams (GET /api/notifications)', status: 'pending' },
+                { id: 'creations-list', name: 'Query user creations index (GET /api/creations)', status: 'pending' },
+                { id: 'drive-page', name: 'Load workspace Filesystem Drive page', status: 'pending' },
             ],
         },
         {
             id: 'creation-flow',
-            name: 'AI Creation Pages',
-            description: 'Verify all creation tool pages load correctly',
+            name: 'AI Generative Pages',
+            description: 'Load all workspace generation page templates for the prompters',
             steps: [
-                { id: 'chat-ping', name: 'Load Chat page', status: 'pending' },
-                { id: 'image-page', name: 'Load Image Generator page', status: 'pending' },
-                { id: 'video-page', name: 'Load Video Generator page', status: 'pending' },
-                { id: 'music-page', name: 'Load Music Generator page', status: 'pending' },
+                { id: 'chat-ping', name: 'Confirm prompt bar page builds', status: 'pending' },
+                { id: 'image-page', name: 'Confirm Flux Schnell visual page builds', status: 'pending' },
+                { id: 'video-page', name: 'Confirm Kling 3.0 video page builds', status: 'pending' },
+                { id: 'music-page', name: 'Confirm Suno Music generator page builds', status: 'pending' },
             ],
         },
         {
             id: 'generation-pipeline',
-            name: 'AI Generation Pipeline',
-            description: 'Verify all AI endpoints parsing, headers, routing and DB injection',
+            name: 'AI Generative Pipelines (Dry Runs)',
+            description: 'Test all API endpoint headers, JSON parsing, routing, and pre-authorizations',
             steps: [
-                { id: 'image-gen-ping', name: 'Test Image API dry POST', status: 'pending' },
-                { id: 'music-gen-ping', name: 'Test Music API dry POST', status: 'pending' },
-                { id: 'video-gen-ping', name: 'Test Video API dry POST', status: 'pending' },
-                { id: 'chat-gen-ping', name: 'Test Chat API streaming dry POST', status: 'pending' },
-                { id: 'creation-save-db', name: 'Write and register Doc creation to SQL Database', status: 'pending' },
+                { id: 'image-gen-ping', name: 'Dry generation on Fal.ai Flux endpoint (POST /api/image/generate)', status: 'pending' },
+                { id: 'music-gen-ping', name: 'Dry generation on Suno endpoint (POST /api/music/generate)', status: 'pending' },
+                { id: 'video-gen-ping', name: 'Dry generation on Kling endpoint (POST /api/video/generate)', status: 'pending' },
+                { id: 'chat-gen-ping', name: 'Dry streaming chat response on DeepSeek V4-Flash (POST /api/chat)', status: 'pending' },
+                { id: 'creation-save-db', name: 'Save generative assets to database', status: 'pending' },
             ],
         },
         {
             id: 'drive-storage-flow',
-            name: 'Drive Operations & Limits',
-            description: 'Test file uploads, filesystem sync, size blocks, and permanent deletion',
+            name: 'Filesystem Storage Limits',
+            description: 'Verify file uploads, size locks (returns 413 above limit), and disk unlinking',
             steps: [
-                { id: 'drive-upload-test', name: 'Upload text asset to Drive', status: 'pending' },
-                { id: 'drive-limit-check', name: 'Assert size block on files > 50 MB (returns 413)', status: 'pending' },
-                { id: 'drive-delete-cleanup', name: 'Permanent delete and disk unlink (DB cleanup)', status: 'pending' },
+                { id: 'drive-upload-test', name: 'Upload text assets to Convex file storage', status: 'pending' },
+                { id: 'drive-limit-check', name: 'Verify limit blocks on assets > 50 MB (returns 413)', status: 'pending' },
+                { id: 'drive-delete-cleanup', name: 'Perform secure cleanup unlinking all E2E test creations', status: 'pending' },
             ],
         },
     ];

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getApiKey } from '@/lib/keys';
 
 /* ── Suno Music API — Poll task status ──
  *  GET https://api.sunoapi.org/api/v1/generate/record-info?taskId=xxx
@@ -10,12 +11,12 @@ import { NextRequest, NextResponse } from 'next/server';
  *  }}
  * ────────────────────────────────────────────────────────── */
 
-const SUNO_API_KEY = process.env.SUNO_API_KEY;
 const SUNO_BASE_URL = 'https://api.sunoapi.org/api/v1';
 
 export async function GET(req: NextRequest) {
     try {
-        if (!SUNO_API_KEY) {
+        const sunoApiKey = await getApiKey('SUNO_API_KEY');
+        if (!sunoApiKey) {
             return NextResponse.json({ error: 'SUNO_API_KEY not configured' }, { status: 500 });
         }
 
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest) {
         const response = await fetch(`${SUNO_BASE_URL}/generate/record-info?taskId=${encodeURIComponent(taskId)}`, {
             method: 'GET',
             headers: {
-                'Authorization': `Bearer ${SUNO_API_KEY}`,
+                'Authorization': `Bearer ${sunoApiKey}`,
                 'Content-Type': 'application/json',
             },
         });
