@@ -75,8 +75,8 @@ export default function SettingsPage() {
     creditsTotal: creditData ? creditData.plan_credits : 200,
     creditsBalance: creditData ? creditData.balance : 200,
     plan: creditData?.plan || 'free',
-    storageUsed: 12.4,
-    storageTotal: creditData?.plan === 'pro' ? 100 : creditData?.plan === 'plus' ? 50 : 1,
+    storageUsed: 0, // TODO: fetch from /api/drive/usage
+    storageTotal: 1, // 1 GB for all plans (verified in drive route)
     topModels: [
       { name: 'DeepSeek V4-Flash', pct: 38 },
       { name: 'Claude Sonnet 4.6', pct: 28 },
@@ -315,41 +315,30 @@ export default function SettingsPage() {
 
               <div className="settings__plans">
                 <div className="settings__plan">
-                  <div className="settings__plan-name">Plus</div>
-                  <div className="settings__plan-price">$25<span>/mo</span></div>
+                  <div className="settings__plan-name">Free</div>
+                  <div className="settings__plan-price">$0<span>/mo</span></div>
                   <ul className="settings__plan-features">
-                    <li>12,000 credits/month</li>
-                    <li>50 GB AI Drive</li>
-                    <li>All premium models</li>
-                    <li>Priority generation queue</li>
-                    <li>Custom agents (up to 10)</li>
+                    <li>200 credits/month</li>
+                    <li>All 15 AI tools</li>
+                    <li>All 4 AI models</li>
+                    <li>Smart AI routing</li>
+                    <li>1 GB Drive storage</li>
                   </ul>
-                  <button className="settings__upgrade-btn" disabled={checkoutLoading === 'plus'} onClick={() => handleCheckout('plan', 'plus')}>{checkoutLoading === 'plus' ? 'Redirecting...' : 'Upgrade to Plus'}</button>
+                  <button className="settings__upgrade-btn" disabled>{usageData.plan === 'free' ? 'Current Plan' : 'Downgrade'}</button>
                 </div>
                 <div className="settings__plan settings__plan--pro">
-                  <div className="settings__plan-popular">Most Popular</div>
+                  <div className="settings__plan-popular">150x More Credits</div>
                   <div className="settings__plan-name">Pro</div>
-                  <div className="settings__plan-price">$49<span>/mo</span></div>
+                  <div className="settings__plan-price">$29<span>/mo</span></div>
                   <ul className="settings__plan-features">
                     <li>30,000 credits/month</li>
-                    <li>100 GB AI Drive</li>
-                    <li>Priority queue & support</li>
-                    <li>Custom agents (unlimited)</li>
-                    <li>API access & webhooks</li>
+                    <li>All 15 AI tools</li>
+                    <li>All 4 AI models</li>
+                    <li>Smart AI routing</li>
+                    <li>1 GB Drive storage</li>
+                    <li>Email support</li>
                   </ul>
-                  <button className="settings__upgrade-btn settings__upgrade-btn--pro" disabled={checkoutLoading === 'pro'} onClick={() => handleCheckout('plan', 'pro')}>{checkoutLoading === 'pro' ? 'Redirecting...' : 'Upgrade to Pro'}</button>
-                </div>
-                <div className="settings__plan">
-                  <div className="settings__plan-name">Enterprise</div>
-                  <div className="settings__plan-price">$249<span>/mo</span></div>
-                  <ul className="settings__plan-features">
-                    <li>200,000 credits/month</li>
-                    <li>500 GB AI Drive</li>
-                    <li>SSO & SAML</li>
-                    <li>Dedicated support & SLA</li>
-                    <li>Team collaboration</li>
-                  </ul>
-                  <button className="settings__upgrade-btn" disabled={checkoutLoading === 'enterprise'} onClick={() => handleCheckout('plan', 'enterprise')}>{checkoutLoading === 'enterprise' ? 'Redirecting...' : 'Contact Sales'}</button>
+                  <button className="settings__upgrade-btn settings__upgrade-btn--pro" disabled={checkoutLoading === 'pro' || usageData.plan === 'pro'} onClick={() => handleCheckout('plan', 'pro')}>{usageData.plan === 'pro' ? 'Current Plan' : checkoutLoading === 'pro' ? 'Redirecting...' : 'Upgrade to Pro'}</button>
                 </div>
               </div>
             </div>

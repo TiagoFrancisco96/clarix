@@ -4,9 +4,7 @@ import { v } from "convex/values";
 /* ── Plan definitions ── */
 const PLAN_CREDITS: Record<string, number> = {
   free: 200,
-  plus: 12_000,
   pro: 30_000,
-  enterprise: 200_000,
 };
 
 /* ── Get user credit balance ── */
