@@ -101,11 +101,25 @@ function ChatPageInner() {
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [activeConvId, setActiveConvId] = useState<string | null>(null);
     const [input, setInput] = useState('');
+    const [attachedFile, setAttachedFile] = useState<File | null>(null);
+    const [isListening, setIsListening] = useState(false);
     const [selectedModel, setSelectedModel] = useState<string>('auto');
     const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const [showHistory, setShowHistory] = useState(false);
     const [activeAgent, setActiveAgent] = useState<AgentDefinition | null>(null);
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const recognitionRef = useRef<any>(null);
+
+    useEffect(() => {
+        return () => {
+            if (recognitionRef.current) {
+                recognitionRef.current.stop();
+            }
+        };
+    }, []);
 
     // Load agent from URL param
     useEffect(() => {
@@ -177,7 +191,7 @@ function ChatPageInner() {
     const handleSend = useCallback(
         async (messageText?: string) => {
             const text = (messageText || input).trim();
-            if (!text || isGenerating) return;
+            if ((!text && !attachedFile) || isGenerating) return;
 
             // Create conversation if needed
             let convId = activeConvId;
@@ -185,10 +199,23 @@ function ChatPageInner() {
                 convId = createNewConversation(activeAgent);
             }
 
+            let finalPrompt = text;
+            if (attachedFile) {
+                const formData = new FormData();
+                formData.append('file', attachedFile);
+                formData.append('folder', 'documents');
+                try {
+                    await fetch('/api/drive', { method: 'POST', body: formData });
+                } catch (err) {
+                    console.error('File upload failed:', err);
+                }
+                finalPrompt += (finalPrompt ? '\n\n' : '') + `📎 [Attached File: ${attachedFile.name}]`;
+            }
+
             const userMsg: Message = {
                 id: `msg-${Date.now()}`,
                 role: 'user',
-                content: text,
+                content: finalPrompt,
                 timestamp: Date.now(),
             };
 
@@ -198,7 +225,7 @@ function ChatPageInner() {
                     if (c.id === convId) {
                         const updated = { ...c, messages: [...c.messages, userMsg] };
                         if (c.messages.filter(m => m.role !== 'system').length === 0) {
-                            updated.title = text.slice(0, 40) + (text.length > 40 ? '...' : '');
+                            updated.title = text.slice(0, 40) + (text.length > 40 ? '...' : '') || `📎 ${attachedFile?.name || 'File'}`;
                         }
                         return updated;
                     }
@@ -207,12 +234,13 @@ function ChatPageInner() {
             );
 
             setInput('');
+            setAttachedFile(null); // Clear attached file
             setIsGenerating(true);
 
             // Pre-select model info for the initial placeholder badge
             let initialModelInfo: AIModelWithStats;
             if (selectedModel === 'auto') {
-                initialModelInfo = autoRouteToModel(text);
+                initialModelInfo = autoRouteToModel(finalPrompt);
             } else {
                 initialModelInfo = AI_MODELS.find((m) => m.id === selectedModel) || AI_MODELS[1];
             }
@@ -239,7 +267,7 @@ function ChatPageInner() {
                 const currentConv = conversations.find(c => c.id === convId);
                 const apiMessages = [
                     ...(currentConv?.messages || []).map(m => ({ role: m.role, content: m.content })),
-                    { role: 'user' as const, content: text },
+                    { role: 'user' as const, content: finalPrompt },
                 ];
 
                 const response = await fetch('/api/chat', {
@@ -354,7 +382,7 @@ function ChatPageInner() {
                 setIsGenerating(false);
             }
         },
-        [input, isGenerating, activeConvId, selectedModel, createNewConversation, activeAgent, conversations]
+        [input, attachedFile, isGenerating, activeConvId, selectedModel, createNewConversation, activeAgent, conversations]
     );
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -656,37 +684,129 @@ function ChatPageInner() {
                 {/* Input Bar */}
                 <div className="chat-input-area">
                     <div className="chat-input">
-                        <textarea
-                            ref={inputRef}
-                            className="chat-input__field"
-                            placeholder="Ask anything..."
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            rows={1}
-                            disabled={isGenerating}
-                        />
-                        <div className="chat-input__controls">
-                            <button className="chat-input__attach" title="Attach file">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
-                                </svg>
-                            </button>
-                            <button
-                                className="chat-input__send"
-                                onClick={() => handleSend()}
-                                disabled={!input.trim() || isGenerating}
-                                title="Send message"
-                            >
-                                {isGenerating ? (
-                                    <div className="chat-input__spinner" />
-                                ) : (
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                        <line x1="22" y1="2" x2="11" y2="13" />
-                                        <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                        {/* Top: Spacious Text Input */}
+                        <div className="chat-input__textarea-wrapper">
+                            <textarea
+                                ref={inputRef}
+                                className="chat-input__field"
+                                placeholder="Ask anything..."
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                rows={2}
+                                disabled={isGenerating}
+                            />
+                        </div>
+
+                        {/* Attached File Chip */}
+                        {attachedFile && (
+                            <div className="chat-input__file-chip animate-fade-in">
+                                <span>📎 {attachedFile.name}</span>
+                                <button 
+                                    onClick={() => setAttachedFile(null)} 
+                                    title="Remove file" 
+                                    className="chat-input__file-chip-remove"
+                                    disabled={isGenerating}
+                                >
+                                    &times;
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Bottom Toolbar */}
+                        <div className="chat-input__toolbar">
+                            <div className="chat-input__toolbar-left">
+                                <button
+                                    className="chat-input__tool-btn"
+                                    title="Attach file"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={isGenerating}
+                                >
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <line x1="12" y1="5" x2="12" y2="19" />
+                                        <line x1="5" y1="12" x2="19" y2="12" />
                                     </svg>
-                                )}
-                            </button>
+                                </button>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    className="sr-only"
+                                    style={{ display: 'none' }}
+                                    onChange={(e) => {
+                                        const f = e.target.files?.[0];
+                                        if (f) setAttachedFile(f);
+                                        e.target.value = '';
+                                    }}
+                                />
+                                <span className="chat-input__model-chip" onClick={() => setIsModelSelectorOpen(prev => !prev)}>
+                                    <span className="chat-input__model-dot" style={{ background: selectedModelInfo.color }} />
+                                    {selectedModelInfo.name}
+                                </span>
+                            </div>
+
+                            <div className="chat-input__toolbar-right">
+                                <button
+                                    className={`chat-input__tool-btn ${isListening ? 'chat-input__tool-btn--active' : ''}`}
+                                    title="Voice input"
+                                    onClick={() => {
+                                        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                                            alert('Speech recognition is not supported in this browser. Please use Chrome or Safari.');
+                                            return;
+                                        }
+                                        if (isListening) {
+                                            recognitionRef.current?.stop();
+                                            setIsListening(false);
+                                            return;
+                                        }
+                                        const W = window as any;
+                                        const SpeechRecognitionAPI = W.SpeechRecognition || W.webkitSpeechRecognition;
+                                        if (!SpeechRecognitionAPI) return;
+                                        const recognition = new SpeechRecognitionAPI();
+                                        recognition.continuous = false;
+                                        recognition.interimResults = true;
+                                        recognition.lang = 'en-US';
+                                        recognition.onresult = (event: any) => {
+                                            let transcript = '';
+                                            for (let i = 0; i < event.results.length; i++) {
+                                                transcript += event.results[i][0].transcript;
+                                            }
+                                            setInput(prev => {
+                                                const base = prev.replace(/\s*\[listening\.\.\.]\s*$/, '');
+                                                return base + (base ? ' ' : '') + transcript;
+                                            });
+                                        };
+                                        recognition.onend = () => setIsListening(false);
+                                        recognition.onerror = () => setIsListening(false);
+                                        recognitionRef.current = recognition;
+                                        recognition.start();
+                                        setIsListening(true);
+                                    }}
+                                    disabled={isGenerating}
+                                >
+                                    {isListening && <span className="chat-input__recording-dot" />}
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                                        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                                        <line x1="12" y1="19" x2="12" y2="23" />
+                                        <line x1="8" y1="23" x2="16" y2="23" />
+                                    </svg>
+                                </button>
+                                <button
+                                    className="chat-input__send-btn"
+                                    onClick={() => handleSend()}
+                                    disabled={(!input.trim() && !attachedFile) || isGenerating}
+                                    title="Send message"
+                                >
+                                    {isGenerating ? (
+                                        <div className="chat-input__spinner" />
+                                    ) : (
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <line x1="22" y1="2" x2="11" y2="13" />
+                                            <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                                        </svg>
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div className="chat-input__info">
