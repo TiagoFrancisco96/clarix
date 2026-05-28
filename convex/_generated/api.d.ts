@@ -9,10 +9,12 @@
  */
 
 import type * as aiDiagnostics from "../aiDiagnostics.js";
+import type * as auth from "../auth.js";
 import type * as creations from "../creations.js";
 import type * as credits from "../credits.js";
 import type * as drive from "../drive.js";
 import type * as errorTracking from "../errorTracking.js";
+import type * as http from "../http.js";
 import type * as notifications from "../notifications.js";
 
 import type {
@@ -23,10 +25,12 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   aiDiagnostics: typeof aiDiagnostics;
+  auth: typeof auth;
   creations: typeof creations;
   credits: typeof credits;
   drive: typeof drive;
   errorTracking: typeof errorTracking;
+  http: typeof http;
   notifications: typeof notifications;
 }>;
 
