@@ -114,7 +114,7 @@ const FAQS = [
   },
   {
     q: 'Why not just use ChatGPT or Claude directly?',
-    a: 'You could — but you\'d need separate subscriptions for chat, images, video, music, and code ($60+/month combined). Clarix gives you all of that in one workspace with one credit system, and it automatically picks the best AI for each task. Less hassle, better results, lower cost.',
+    a: 'You could — but you\'d need separate subscriptions for chat, images, video, music, and code. Clarix gives you all 15 tools in one workspace with one credit system, and it automatically picks the best AI for each task. One login, one place for everything.',
   },
 ];
 
@@ -561,11 +561,11 @@ export default function HomePage() {
               <div className="pricing-card__price">$0<span>/month</span></div>
               <ul className="pricing-card__features">
                 <li>&#x2713; 200 credits per month</li>
-                <li>&#x2713; Access to all 15 AI tools</li>
+                <li>&#x2713; All 15 AI tools included</li>
                 <li>&#x2713; All 4 AI models</li>
-                <li>&#x2713; Basic AI routing</li>
+                <li>&#x2713; Smart AI routing</li>
+                <li>&#x2713; Custom AI agents</li>
                 <li>&#x2713; 1 GB Drive storage</li>
-                <li>&#x2713; Community support</li>
                 <li>&#x2713; No credit card needed</li>
               </ul>
               <Link href="/chat" className="pricing-card__btn">Get Started Free</Link>
@@ -576,12 +576,12 @@ export default function HomePage() {
               <div className="pricing-card__price">$29<span>/month</span></div>
               <ul className="pricing-card__features">
                 <li>&#x2713; 30,000 credits/month</li>
-                <li>&#x2713; Advanced smart routing</li>
-                <li>&#x2713; Priority model access</li>
-                <li>&#x2713; Developer API access</li>
+                <li>&#x2713; All 15 AI tools included</li>
+                <li>&#x2713; All 4 AI models</li>
+                <li>&#x2713; Smart AI routing</li>
                 <li>&#x2713; Custom AI agents</li>
-                <li>&#x2713; 100 GB Drive storage</li>
-                <li>&#x2713; Priority support</li>
+                <li>&#x2713; 1 GB Drive storage</li>
+                <li>&#x2713; Email support</li>
               </ul>
               <Link href="/chat" className="pricing-card__btn pricing-card__btn--gold">Start Pro Trial</Link>
             </div>
@@ -589,13 +589,13 @@ export default function HomePage() {
               <span className="pricing-card__name">Enterprise</span>
               <div className="pricing-card__price">Custom</div>
               <ul className="pricing-card__features">
-                <li>&#x2713; Unlimited credits</li>
+                <li>&#x2713; 200,000+ credits/month</li>
                 <li>&#x2713; Everything in Pro</li>
-                <li>&#x2713; Single sign-on (SSO)</li>
-                <li>&#x2713; Dedicated account manager</li>
-                <li>&#x2713; 500 GB+ Drive storage</li>
-                <li>&#x2713; SLA guarantee (99.9%)</li>
-                <li>&#x2713; Team collaboration tools</li>
+                <li>&#x2713; Volume credit pricing</li>
+                <li>&#x2713; Dedicated support</li>
+                <li>&nbsp;</li>
+                <li>&nbsp;</li>
+                <li>&nbsp;</li>
               </ul>
               <Link href="/info?tab=contact" className="pricing-card__btn">Contact Sales</Link>
             </div>
