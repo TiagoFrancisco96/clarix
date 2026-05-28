@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession, signIn } from '@/lib/auth-client';
-import { Plus, Mic, ArrowRight, X, Check } from 'lucide-react';
+import { Plus, Mic, ArrowRight, X, Check, MessageSquare, Search, Image, Film, Music, Presentation, Table, FileText, Code, Palette, HardDrive, Podcast } from 'lucide-react';
 import './home.css';
 
 // Removed canvas ParticleField
@@ -74,54 +74,30 @@ const AI_ENGINES = [
 
 /* ── Tool Data (bento grid) ── */
 const TOOLS = [
-  { href: '/chat', label: 'AI Chat', icon: '💬', desc: 'Ask anything, get answers instantly', color: '#d4a843', glow: 'rgba(212,168,67,0.3)' },
-  { href: '/image', label: 'Image Creator', icon: '🎨', desc: 'Turn ideas into stunning images', color: '#4ade80', glow: 'rgba(74,222,128,0.3)' },
-  { href: '/video', label: 'Video Maker', icon: '🎬', desc: 'Create videos from text prompts', color: '#8b5cf6', glow: 'rgba(139,92,246,0.3)' },
-  { href: '/developer', label: 'Code Assistant', icon: '⚡', desc: 'Write, fix & debug code', color: '#a78bfa', glow: 'rgba(167,139,250,0.3)' },
-  { href: '/music', label: 'Music Studio', icon: '🎵', desc: 'Compose songs & soundtracks', color: '#f472b6', glow: 'rgba(244,114,182,0.3)' },
-  { href: '/slides', label: 'Slide Builder', icon: '📊', desc: 'Presentations in seconds', color: '#f59e0b', glow: 'rgba(245,158,11,0.3)' },
-  { href: '/sheets', label: 'Smart Sheets', icon: '📈', desc: 'Analyze data & make charts', color: '#10b981', glow: 'rgba(16,185,129,0.3)' },
-  { href: '/designer', label: 'Design Studio', icon: '✨', desc: 'Create beautiful interfaces', color: '#c4956a', glow: 'rgba(196,149,106,0.3)' },
-  { href: '/search', label: 'Deep Search', icon: '🔍', desc: 'Research any topic in depth', color: '#14b8a6', glow: 'rgba(20,184,166,0.3)' },
-  { href: '/podcasts', label: 'Podcast Creator', icon: '🎙️', desc: 'Generate audio episodes', color: '#f97316', glow: 'rgba(249,115,22,0.3)' },
-  { href: '/meeting-notes', label: 'Meeting Notes', icon: '🎤', desc: 'Transcribe & summarize meetings', color: '#06b6d4', glow: 'rgba(6,182,212,0.3)' },
-  { href: '/drive', label: 'Cloud Drive', icon: '☁️', desc: 'Store & organize your files', color: '#64748b', glow: 'rgba(100,116,139,0.3)' },
+  { href: '/chat', label: 'AI Chat', icon: <MessageSquare size={22} strokeWidth={1.8} />, desc: 'Ask anything, get answers instantly', color: '#d4a843', glow: 'rgba(212,168,67,0.3)' },
+  { href: '/image', label: 'Image Creator', icon: <Image size={22} strokeWidth={1.8} />, desc: 'Turn ideas into stunning images', color: '#4ade80', glow: 'rgba(74,222,128,0.3)' },
+  { href: '/video', label: 'Video Maker', icon: <Film size={22} strokeWidth={1.8} />, desc: 'Create videos from text prompts', color: '#8b5cf6', glow: 'rgba(139,92,246,0.3)' },
+  { href: '/developer', label: 'Code Assistant', icon: <Code size={22} strokeWidth={1.8} />, desc: 'Write, fix & debug code', color: '#a78bfa', glow: 'rgba(167,139,250,0.3)' },
+  { href: '/music', label: 'Music Studio', icon: <Music size={22} strokeWidth={1.8} />, desc: 'Compose songs & soundtracks', color: '#f472b6', glow: 'rgba(244,114,182,0.3)' },
+  { href: '/slides', label: 'Slide Builder', icon: <Presentation size={22} strokeWidth={1.8} />, desc: 'Presentations in seconds', color: '#f59e0b', glow: 'rgba(245,158,11,0.3)' },
+  { href: '/sheets', label: 'Smart Sheets', icon: <Table size={22} strokeWidth={1.8} />, desc: 'Analyze data & make charts', color: '#10b981', glow: 'rgba(16,185,129,0.3)' },
+  { href: '/designer', label: 'Design Studio', icon: <Palette size={22} strokeWidth={1.8} />, desc: 'Create beautiful interfaces', color: '#c4956a', glow: 'rgba(196,149,106,0.3)' },
+  { href: '/search', label: 'Deep Search', icon: <Search size={22} strokeWidth={1.8} />, desc: 'Research any topic in depth', color: '#14b8a6', glow: 'rgba(20,184,166,0.3)' },
+  { href: '/podcasts', label: 'Podcast Creator', icon: <Podcast size={22} strokeWidth={1.8} />, desc: 'Generate audio episodes', color: '#f97316', glow: 'rgba(249,115,22,0.3)' },
+  { href: '/meeting-notes', label: 'Meeting Notes', icon: <Mic size={22} strokeWidth={1.8} />, desc: 'Transcribe & summarize meetings', color: '#06b6d4', glow: 'rgba(6,182,212,0.3)' },
+  { href: '/drive', label: 'Cloud Drive', icon: <HardDrive size={22} strokeWidth={1.8} />, desc: 'Store & organize your files', color: '#64748b', glow: 'rgba(100,116,139,0.3)' },
 ];
 
-/* ── Hero Tool Category Bar (below prompt) ── */
-const HERO_TOOL_CATEGORIES = [
-  {
-    title: 'Office Suite',
-    tools: [
-      { href: '/slides', label: 'AI Slides', color: '#f59e0b' },
-      { href: '/sheets', label: 'AI Sheets', color: '#10b981' },
-      { href: '/docs', label: 'AI Docs', color: '#4a9eff' },
-    ],
-  },
-  {
-    title: 'Design & Code',
-    tools: [
-      { href: '/designer', label: 'Design', color: '#c4956a' },
-      { href: '/developer', label: 'Code', color: '#a78bfa' },
-    ],
-  },
-  {
-    title: 'Content Creation',
-    tools: [
-      { href: '/chat', label: 'AI Chat', color: '#d4a843' },
-      { href: '/image', label: 'AI Image', color: '#4ade80' },
-      { href: '/video', label: 'AI Video', color: '#8b5cf6' },
-      { href: '/music', label: 'AI Music', color: '#f472b6' },
-    ],
-  },
-  {
-    title: 'Tools',
-    tools: [
-      { href: '/meeting-notes', label: 'Meeting Notes', color: '#06b6d4' },
-      { href: '/search', label: 'Deep Search', color: '#14b8a6' },
-      { href: '/agents', label: 'AI Agents', color: '#6366f1' },
-    ],
-  },
+/* ── Hero Tools (flat icon row below prompt — only fully working tools) ── */
+const HERO_TOOLS = [
+  { href: '/chat', label: 'Chat', icon: 'MessageSquare', color: '#d4a843' },
+  { href: '/search', label: 'Search', icon: 'Search', color: '#14b8a6' },
+  { href: '/image', label: 'Image', icon: 'Image', color: '#4ade80' },
+  { href: '/video', label: 'Video', icon: 'Film', color: '#8b5cf6' },
+  { href: '/music', label: 'Music', icon: 'Music', color: '#f472b6' },
+  { href: '/slides', label: 'Slides', icon: 'Presentation', color: '#f59e0b' },
+  { href: '/sheets', label: 'Sheets', icon: 'Table', color: '#10b981' },
+  { href: '/docs', label: 'Docs', icon: 'FileText', color: '#4a9eff' },
 ];
 
 /* ── FAQ Data ── */
@@ -558,36 +534,22 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* ── Categorized Tool Icon Bar ── */}
+          {/* ── Tool Icon Row ── */}
           <div className="hero-tools-bar">
-            {HERO_TOOL_CATEGORIES.map((cat) => (
-              <div key={cat.title} className="hero-tools-bar__category">
-                <span className="hero-tools-bar__title">{cat.title}</span>
-                <div className="hero-tools-bar__icons">
-                  {cat.tools.map((tool) => (
-                    <Link key={tool.href} href={tool.href} className="hero-tools-bar__item">
-                      <div className="hero-tools-bar__icon" style={{ background: `${tool.color}18`, border: `1px solid ${tool.color}30` }}>
-                        <span style={{ fontSize: '1.2rem' }}>
-                          {tool.href === '/slides' && '📊'}
-                          {tool.href === '/sheets' && '📈'}
-                          {tool.href === '/docs' && '📄'}
-                          {tool.href === '/designer' && '✨'}
-                          {tool.href === '/developer' && '⚡'}
-                          {tool.href === '/chat' && '💬'}
-                          {tool.href === '/image' && '🎨'}
-                          {tool.href === '/video' && '🎬'}
-                          {tool.href === '/music' && '🎵'}
-                          {tool.href === '/meeting-notes' && '🎤'}
-                          {tool.href === '/search' && '🔍'}
-                          {tool.href === '/agents' && '🤖'}
-                        </span>
-                      </div>
-                      <span className="hero-tools-bar__label">{tool.label}</span>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            ))}
+            {HERO_TOOLS.map((tool) => {
+              const IconMap: Record<string, React.ComponentType<{size?: number; strokeWidth?: number}>> = {
+                MessageSquare, Search, Image, Film, Music, Presentation, Table, FileText,
+              };
+              const Icon = IconMap[tool.icon];
+              return (
+                <Link key={tool.href} href={tool.href} className="hero-tools-bar__item">
+                  <div className="hero-tools-bar__icon" style={{ color: tool.color }}>
+                    {Icon && <Icon size={20} strokeWidth={1.8} />}
+                  </div>
+                  <span className="hero-tools-bar__label">{tool.label}</span>
+                </Link>
+              );
+            })}
           </div>
         </section>
 
