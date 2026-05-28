@@ -18,11 +18,11 @@ interface DesignItem {
 }
 
 const DESIGN_MODELS = [
-    { id: 'flux-schnell', name: 'FLUX Schnell', provider: 'BFL', color: '#a78bfa', description: 'Quick drafts · most affordable', credits: 2 },
-    { id: 'ideogram-v3', name: 'Ideogram V3', provider: 'Ideogram', color: '#ff6b35', description: 'Best for text & logos in designs', credits: 8 },
-    { id: 'flux-2-pro', name: 'FLUX.2 Pro', provider: 'BFL', color: '#4285f4', description: 'Very realistic · professional', credits: 8 },
-    { id: 'gpt-image-2', name: 'GPT Image 2', provider: 'OpenAI', color: '#10a37f', description: 'Best quality · realistic images', credits: 15 },
-    { id: 'nano-banana-pro', name: 'Nano Banana Pro', provider: 'Google', color: '#34a853', description: 'Studio-quality (Imagen 4)', credits: 20 },
+    { id: 'flux-schnell', name: 'Clarix Draft', provider: 'Clarix', color: '#a78bfa', description: 'Quick drafts · most affordable', credits: 2 },
+    { id: 'ideogram-v3', name: 'Clarix Typography', provider: 'Clarix', color: '#ff6b35', description: 'Best for text & logos in designs', credits: 8 },
+    { id: 'flux-2-pro', name: 'Clarix Studio', provider: 'Clarix', color: '#4285f4', description: 'Very realistic · professional', credits: 8 },
+    { id: 'gpt-image-2', name: 'Clarix Ultra', provider: 'Clarix', color: '#10a37f', description: 'Best quality · realistic images', credits: 15 },
+    { id: 'nano-banana-pro', name: 'Clarix Realism', provider: 'Clarix', color: '#34a853', description: 'Studio-quality realism', credits: 20 },
 ];
 
 const TEMPLATES = [

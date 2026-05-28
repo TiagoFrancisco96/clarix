@@ -41,42 +41,42 @@ type AIModelWithStats = AIModel & {
 };
 
 const AI_MODELS: AIModelWithStats[] = [
-    { id: 'auto', name: '✨ Smart Pick', provider: 'Clarix', color: '#d4a843', description: 'Automatically picks the best AI for your task', priceScore: 0, codingScore: 0, visualScore: 0, creditCost: '', isAuto: true },
-    { id: 'deepseek-v4-flash', name: '⚡ Speed', provider: 'DeepSeek', color: '#a78bfa', description: 'Fastest replies · uses the fewest credits', priceScore: 1, codingScore: 2, visualScore: 1, creditCost: '1 credit' },
-    { id: 'gpt-5.4', name: '✍️ Writer', provider: 'OpenAI', color: '#10a37f', description: 'Best for writing, emails & creative work', priceScore: 2, codingScore: 3, visualScore: 3, creditCost: '3 credits' },
-    { id: 'claude-sonnet-4.6', name: '💻 Pro', provider: 'Anthropic', color: '#e8915a', description: 'Smartest · coding, analysis & complex tasks', priceScore: 3, codingScore: 5, visualScore: 4, creditCost: '3 credits' },
-    { id: 'gemini-3.1-pro', name: '📚 Research', provider: 'Google', color: '#4285f4', description: 'Deep research · reads very long documents', priceScore: 2, codingScore: 3, visualScore: 4, creditCost: '2 credits' },
+    { id: 'auto', name: '✨ Smart Pick', provider: 'Clarix', color: '#d4a843', description: 'Automatically picks the best engine for your task', priceScore: 0, codingScore: 0, visualScore: 0, creditCost: '', isAuto: true },
+    { id: 'deepseek-v4-flash', name: '⚡ Speed', provider: 'Clarix', color: '#a78bfa', description: 'Fastest replies · uses the fewest credits', priceScore: 1, codingScore: 2, visualScore: 1, creditCost: '1 credit' },
+    { id: 'gpt-5.4', name: '✍️ Writer', provider: 'Clarix', color: '#10a37f', description: 'Best for writing, emails & creative work', priceScore: 2, codingScore: 3, visualScore: 3, creditCost: '3 credits' },
+    { id: 'claude-sonnet-4.6', name: '💻 Pro', provider: 'Clarix', color: '#e8915a', description: 'Smartest · coding, analysis & complex tasks', priceScore: 3, codingScore: 5, visualScore: 4, creditCost: '3 credits' },
+    { id: 'gemini-3.1-pro', name: '📚 Research', provider: 'Clarix', color: '#4285f4', description: 'Deep research · reads very long documents', priceScore: 2, codingScore: 3, visualScore: 4, creditCost: '2 credits' },
 ];
 
 /* ── Smart Auto Router ── */
-/* Analyzes what you're asking and picks the best AI for the job */
+/* Analyzes what you're asking and picks the best engine for the job */
 function autoRouteToModel(userMessage: string): AIModelWithStats {
     const msg = userMessage.toLowerCase();
 
-    // Coding & technical tasks → Pro (Claude Sonnet 4.6)
+    // Coding & technical tasks → Pro Engine
     const codePatterns = /\b(code|function|bug|error|debug|refactor|typescript|javascript|python|react|css|html|api|class|component|import|export|async|await|const |let |var |console\.|\{\}|=>|\(\)|npm|yarn|git|sql|database|schema|algorithm|regex|compile|architect|codebase|system design|migrate)\b|```/i;
     if (codePatterns.test(msg)) {
         return AI_MODELS.find(m => m.id === 'claude-sonnet-4.6')!;
     }
 
-    // Research & analysis → Research (Gemini 3.1 Pro)
+    // Research & analysis → Research Engine
     const researchPatterns = /\b(research|analyze|compare|summarize|review|study|investigate|data|statistics|report|document|paper|article|read this|context|long)\b/i;
     if (researchPatterns.test(msg) && msg.length > 200) {
         return AI_MODELS.find(m => m.id === 'gemini-3.1-pro')!;
     }
 
-    // Writing & creative tasks → Writer (GPT-5.4)
+    // Writing & creative tasks → Writer Engine
     const writingPatterns = /\b(write|essay|article|blog|story|creative|draft|rewrite|edit|proofread|email|letter|pitch|presentation|speech|copy|tone|style|narrative|explain why|step by step|prove|reason|logic|philosophy|debate|argument|calculate|complex|advanced|deep dive|latest|today|current|news|trending)\b/i;
     if (writingPatterns.test(msg)) {
         return AI_MODELS.find(m => m.id === 'gpt-5.4')!;
     }
 
-    // Quick/simple questions → Speed (DeepSeek V4-Flash)
+    // Quick/simple questions → Speed Engine
     if (msg.length < 100) {
         return AI_MODELS.find(m => m.id === 'deepseek-v4-flash')!;
     }
 
-    // Default for everything else → Writer (GPT-5.4)
+    // Default for everything else → Writer Engine
     return AI_MODELS.find(m => m.id === 'gpt-5.4')!;
 }
 

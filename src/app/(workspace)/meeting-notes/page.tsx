@@ -22,9 +22,9 @@ interface Transcript {
 }
 
 const STT_ENGINES = [
-    { id: 'deepgram', name: 'Deepgram Nova-3', color: '#13ef93', description: 'Live transcription · very accurate', credits: 200 },
-    { id: 'assemblyai', name: 'AssemblyAI', color: '#2563eb', description: 'Knows who is talking · finds key topics', credits: 120 },
-    { id: 'whisper', name: 'Whisper (OpenAI)', color: '#10a37f', description: 'Speaks 99 languages · most affordable', credits: 130 },
+    { id: 'deepgram', name: 'Clarix Transcribe Pro', color: '#13ef93', description: 'Live transcription · very accurate', credits: 200 },
+    { id: 'assemblyai', name: 'Clarix Transcribe Plus', color: '#2563eb', description: 'Knows who is talking · finds key topics', credits: 120 },
+    { id: 'whisper', name: 'Clarix Transcribe Multilingual', color: '#10a37f', description: 'Speaks 99 languages · most affordable', credits: 130 },
 ];
 
 const OUTPUT_OPTIONS = [

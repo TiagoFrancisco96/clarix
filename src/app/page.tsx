@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession, signIn } from '@/lib/auth-client';
+import { Image, Pencil, Globe, Plus, Mic, ArrowUp, X, Check } from 'lucide-react';
 import './home.css';
 
 // Removed canvas ParticleField
@@ -63,12 +64,12 @@ function useScrollReveal() {
   return ref;
 }
 
-/* ── AI Models — shown in marquee with friendly labels ── */
-const AI_MODELS = [
-  { name: '⚡ Speed', provider: 'by DeepSeek' },
-  { name: '✍️ Writer', provider: 'by OpenAI' },
-  { name: '💻 Pro', provider: 'by Anthropic' },
-  { name: '📚 Research', provider: 'by Google' },
+/* ── AI Engines — shown in marquee as Clarix's own specialized engines ── */
+const AI_ENGINES = [
+  { name: '⚡ Speed Engine', desc: 'Lightning-fast responses' },
+  { name: '✍️ Writer Engine', desc: 'Best for creative writing' },
+  { name: '💻 Pro Engine', desc: 'Complex tasks & coding' },
+  { name: '📚 Research Engine', desc: 'Deep analysis & reasoning' },
 ];
 
 /* ── Tool Data ── */
@@ -93,8 +94,8 @@ const TOOLS = [
 /* ── FAQ Data ── */
 const FAQS = [
   {
-    q: 'How does Clarix pick the best AI for my task?',
-    a: 'Clarix automatically analyzes what you\'re asking and routes your request to the AI that\'s best at that kind of task — whether it\'s writing, coding, research, or creative work. You never have to think about which model to use. It just works.',
+    q: 'How does Clarix pick the best engine for my task?',
+    a: 'Clarix automatically analyzes what you\'re asking and routes your request to the engine that\'s best at that kind of task — whether it\'s writing, coding, research, or creative work. You never have to think about which engine to use. It just works.',
   },
   {
     q: 'Is my data private and secure?',
@@ -113,51 +114,21 @@ const FAQS = [
     a: 'Yes, instantly. There are no contracts, no cancellation fees, and no hidden charges. You stay on the free plan if you downgrade. We keep things simple because we believe the product should earn your trust, not a contract.',
   },
   {
-    q: 'Why not just use ChatGPT or Claude directly?',
-    a: 'You could — but you\'d need separate subscriptions for chat, images, video, music, and code. Clarix gives you all 15 tools in one workspace with one credit system, and it automatically picks the best AI for each task. One login, one place for everything.',
+    q: 'Why Clarix instead of using multiple AI tools?',
+    a: 'Instead of juggling separate apps and subscriptions for chat, images, video, music, and code, Clarix gives you all 15 tools in one workspace with one subscription. Our intelligent routing always picks the best engine for each task. One login, one place for everything.',
   },
 ];
 
-/* ── Tool Categories (icon bar below prompt) ── */
-const TOOL_CATEGORIES = [
-  {
-    label: 'Office Suite',
-    tools: [
-      { href: '/slides', icon: '📊', name: 'AI Slides', color: 'var(--tool-fg-slides)', bg: 'var(--tool-slides)', tips: ['Generate full presentations from a prompt', 'Auto-layout with professional themes'] },
-      { href: '/sheets', icon: '📈', name: 'AI Sheets', color: 'var(--tool-fg-sheets)', bg: 'var(--tool-sheets)', tips: ['Analyze data & generate charts', 'Formula suggestions & auto-fill'] },
-      { href: '/docs', icon: '📄', name: 'AI Docs', color: 'var(--tool-fg-docs)', bg: 'var(--tool-docs)', tips: ['Write documents with AI assistance', 'Auto-format, summarize & translate'] },
-    ],
-  },
-  {
-    label: 'Design & Code',
-    tools: [
-      { href: '/designer', icon: '✨', name: 'Design', color: 'var(--tool-fg-designer)', bg: 'var(--tool-designer)', tips: ['Design posters, logos, flyers & more', 'Pro-grade exports, every template is free'] },
-      { href: '/developer', icon: '⚡', name: 'Code', color: 'var(--tool-fg-developer)', bg: 'var(--tool-developer)', tips: ['Write, debug & explain code', 'Supports 50+ programming languages'] },
-    ],
-  },
-  {
-    label: 'Content Creation',
-    tools: [
-      { href: '/chat', icon: '💬', name: 'AI Chat', color: 'var(--tool-fg-chat)', bg: 'var(--tool-chat)', tips: ['Ask anything, get answers instantly', 'Auto-routes to the best AI model'] },
-      { href: '/image', icon: '🎨', name: 'AI Image', color: 'var(--tool-fg-image)', bg: 'var(--tool-image)', tips: ['Turn text prompts into stunning images', 'Multiple styles: realistic, anime, art'] },
-      { href: '/video', icon: '🎬', name: 'AI Video', color: 'var(--tool-fg-video)', bg: 'var(--tool-video)', tips: ['Create videos from text descriptions', 'Powered by top-tier video AI models'] },
-      { href: '/music', icon: '🎵', name: 'AI Music', color: 'var(--tool-fg-music)', bg: 'var(--tool-music)', tips: ['Compose songs & soundtracks', 'Multiple genres, custom duration'] },
-    ],
-  },
-  {
-    label: 'Tools',
-    tools: [
-      { href: '/meeting-notes', icon: '🎤', name: 'Meeting Notes', color: 'var(--tool-fg-meeting)', bg: 'var(--tool-meeting)', tips: ['Transcribe & summarize meetings', 'Extract action items automatically'] },
-      { href: '/search', icon: '🔍', name: 'Deep Search', color: '#14b8a6', bg: '#1e3331', tips: ['Research any topic in depth', 'Aggregates sources with citations'] },
-      { href: '/agents', icon: '🤖', name: 'AI Agents', color: 'var(--tool-fg-all-agents)', bg: 'var(--tool-all-agents)', tips: ['Build custom AI workflows', 'Automate repetitive tasks'] },
-    ],
-  },
+/* ── Capsule Suggestions (below prompt bar) ── */
+const CAPSULE_SUGGESTIONS = [
+  { icon: Image, label: 'Create an image', prompt: 'Create a stunning, ultra-realistic illustration of a futuristic city skyline at sunset with flying cars and neon lights reflecting on glass buildings' },
+  { icon: Pencil, label: 'Write or edit', prompt: 'Write a compelling, high-converting landing page headline and subheadline for a productivity app that helps remote teams collaborate better' },
+  { icon: Globe, label: 'Look something up', prompt: 'Research the latest breakthroughs in quantum computing in 2026 and summarize the top 5 most impactful developments' },
 ];
 
 /* ── Main Homepage ── */
 export default function HomePage() {
   const [promptValue, setPromptValue] = useState('');
-  const [activeMode, setActiveMode] = useState<'research' | 'create'>('research');
   const [placeholder, setPlaceholder] = useState('');
   const [phIdx, setPhIdx] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -169,11 +140,15 @@ export default function HomePage() {
   const [loginError, setLoginError] = useState('');
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [isListening, setIsListening] = useState(false);
-  const [hoveredTool, setHoveredTool] = useState<string | null>(null);
+  const [voiceWaves, setVoiceWaves] = useState<number[]>(new Array(32).fill(2));
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const audioStreamRef = useRef<MediaStream | null>(null);
+  const animFrameRef = useRef<number>(0);
   const router = useRouter();
   const { data: session } = useSession();
 
@@ -240,6 +215,138 @@ export default function HomePage() {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
   }, []);
 
+  /* Auto-resize textarea */
+  const handleTextareaChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setPromptValue(val);
+    const el = e.target;
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+  }, []);
+
+  /* Capsule click handler */
+  const handleCapsuleClick = useCallback((prompt: string) => {
+    setPromptValue(prompt);
+    if (inputRef.current) {
+      inputRef.current.value = prompt;
+      inputRef.current.style.height = 'auto';
+      inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 200) + 'px';
+      inputRef.current.focus();
+    }
+  }, []);
+
+  /* ── Voice Dictation with Web Audio API Waveform ── */
+  const startDictation = useCallback(async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const W = window as any;
+    const SpeechRecognitionAPI = W.SpeechRecognition || W.webkitSpeechRecognition;
+    if (!SpeechRecognitionAPI) return;
+
+    setIsListening(true);
+
+    // Start speech recognition
+    const recognition = new SpeechRecognitionAPI();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onresult = (event: any) => {
+      let transcript = '';
+      for (let i = 0; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      setPromptValue(prev => {
+        const base = prev.replace(/\s*\[listening\.\.\.]\s*$/, '');
+        return base + (base ? ' ' : '') + transcript;
+      });
+    };
+    recognition.onend = () => stopDictation();
+    recognition.onerror = () => stopDictation();
+    recognitionRef.current = recognition;
+    recognition.start();
+
+    // Start Web Audio API for waveform visualization
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioStreamRef.current = stream;
+      const audioCtx = new AudioContext();
+      audioContextRef.current = audioCtx;
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 128;
+      analyser.smoothingTimeConstant = 0.7;
+      source.connect(analyser);
+      analyserRef.current = analyser;
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      const visualize = () => {
+        analyser.getByteFrequencyData(dataArray);
+        const bars = 32;
+        const step = Math.floor(dataArray.length / bars);
+        const newWaves: number[] = [];
+        for (let i = 0; i < bars; i++) {
+          const val = dataArray[i * step] || 0;
+          const scaled = Math.max(2, (val / 255) * 40);
+          newWaves.push(scaled);
+        }
+        setVoiceWaves(newWaves);
+        animFrameRef.current = requestAnimationFrame(visualize);
+      };
+      animFrameRef.current = requestAnimationFrame(visualize);
+    } catch {
+      // Microphone denied: fall back to CSS pulsing animation
+      const pulseFallback = () => {
+        setVoiceWaves(prev => prev.map(() => 2 + Math.random() * 20));
+        animFrameRef.current = requestAnimationFrame(pulseFallback);
+      };
+      animFrameRef.current = requestAnimationFrame(pulseFallback);
+    }
+  }, []);
+
+  const stopDictation = useCallback(() => {
+    setIsListening(false);
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
+
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
+    }
+    if (audioStreamRef.current) {
+      audioStreamRef.current.getTracks().forEach(t => t.stop());
+      audioStreamRef.current = null;
+    }
+    analyserRef.current = null;
+    setVoiceWaves(new Array(32).fill(2));
+  }, []);
+
+  const cancelDictation = useCallback(() => {
+    stopDictation();
+  }, [stopDictation]);
+
+  const acceptDictation = useCallback(() => {
+    stopDictation();
+    // Resize textarea to fit content
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+      inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 200) + 'px';
+    }
+  }, [stopDictation]);
+
+  /* ESC key to cancel dictation */
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isListening) {
+        cancelDictation();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isListening, cancelDictation]);
+
+  const isExpanded = promptValue.length > 0 || (attachedFile !== null);
+
   return (
     <div className="home">
       {/* Animated Background */}
@@ -288,8 +395,8 @@ export default function HomePage() {
           </div>
 
           <h1 className="hero__title">
-            <span className="hero__title-line">Create anything.</span>
-            <span className="hero__title-line hero__title-gradient">Research everything.</span>
+            <span className="hero__title-line">Stop juggling apps.</span>
+            <span className="hero__title-line hero__title-gradient">Start creating with Clarix.</span>
           </h1>
 
           <p className="hero__desc">
@@ -297,207 +404,154 @@ export default function HomePage() {
             Powered by the world&apos;s best AI, working together for you.
           </p>
 
-          {/* ── Interactive Prompt Bar (Genspark-style) ── */}
+          {/* ── Minimalist Prompt Bar ── */}
           <div className="prompt-container">
-            <div className="prompt-bar">
+            <div className={`prompt-bar ${isExpanded ? 'prompt-bar--expanded' : ''}`}>
               <div className="prompt-bar__glow" />
               <div className="prompt-bar__inner">
-                {/* Top: Textarea */}
-                <div className="prompt-bar__text">
-                  <textarea
-                    ref={inputRef}
-                    className="prompt-bar__input"
-                    value={promptValue}
-                    rows={1}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setPromptValue(val);
-                      // Auto-resize textarea
-                      const el = e.target;
-                      el.style.height = 'auto';
-                      el.style.height = Math.min(el.scrollHeight, 120) + 'px';
 
-                      // ── Auto-detect mode from prompt intent ──
-                      const lower = val.toLowerCase().trim();
-                      if (lower.length > 3) {
-                        const createPatterns = [
-                          /^(create|make|generate|build|design|draw|compose|produce|craft|render)\b/,
-                          /\b(image|picture|photo|illustration|artwork|logo|icon|banner|poster)\b/,
-                          /\b(video|animation|clip|movie|trailer|reel)\b/,
-                          /\b(song|music|beat|soundtrack|melody|audio|jingle)\b/,
-                          /\b(slide|presentation|deck|ppt)\b/,
-                          /\b(website|landing page|ui|mockup|wireframe|app|interface)\b/,
-                          /\b(write me a|draft a|compose a|generate a)\b/,
-                          /\b(ultra realistic|cinematic|4k|hd|photorealistic|anime|pixel art|watercolor|oil painting)\b/,
-                        ];
-                        const researchPatterns = [
-                          /^(what|who|when|where|why|how|is|are|can|does|do|should|which|tell me)\b/,
-                          /\b(explain|summarize|compare|analyze|research|find|search|look up|define)\b/,
-                          /\b(difference between|pros and cons|advantages|disadvantages)\b/,
-                          /\b(meaning of|definition of|history of|origin of)\b/,
-                          /\b(help me understand|what does|how does|how do)\b/,
-                        ];
-                        const isCreate = createPatterns.some(p => p.test(lower));
-                        const isResearch = researchPatterns.some(p => p.test(lower));
-                        if (isCreate && !isResearch) setActiveMode('create');
-                        else if (isResearch && !isCreate) setActiveMode('research');
-                      }
-                    }}
-                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); } }}
-                    placeholder={promptValue ? '' : undefined}
-                  />
-                  {!promptValue && (
-                    <div className="prompt-bar__placeholder-anim">
-                      <span>{placeholder}</span>
-                      <span className="prompt-bar__cursor" />
-                    </div>
-                  )}
-                </div>
-
-                {/* Attached file chip */}
-                {attachedFile && (
-                  <div className="prompt-bar__file-chip">
-                    <span>📎 {attachedFile.name}</span>
-                    <button onClick={() => setAttachedFile(null)} title="Remove file">&times;</button>
-                  </div>
-                )}
-
-                {/* Bottom toolbar */}
-                <div className="prompt-bar__toolbar">
-                  <div className="prompt-bar__toolbar-left">
+                {/* ── Dictation Waveform Overlay ── */}
+                {isListening && (
+                  <div className="prompt-bar__waveform-overlay">
                     <button
-                      className="prompt-bar__tool-btn"
+                      className="prompt-bar__attach-btn"
                       title="Attach file"
                       onClick={() => fileInputRef.current?.click()}
                     >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                      <Plus size={20} />
                     </button>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      className="sr-only"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        if (f) setAttachedFile(f);
-                        e.target.value = '';
-                      }}
-                    />
-                    <span className="prompt-bar__model-chip">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
-                      Auto
-                    </span>
+                    <div className="prompt-bar__waveform-track">
+                      <div className="prompt-bar__waveform-silence" />
+                      <div className="prompt-bar__waveform-bars">
+                        {voiceWaves.map((h, i) => (
+                          <div
+                            key={i}
+                            className="prompt-bar__waveform-bar"
+                            style={{ height: `${h}px`, transition: 'height 0.08s ease' }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <div className="prompt-bar__waveform-actions">
+                      <button
+                        className="prompt-bar__waveform-btn prompt-bar__waveform-btn--cancel"
+                        onClick={cancelDictation}
+                        title="Cancel Dictation  ESC"
+                      >
+                        <X size={18} />
+                      </button>
+                      <button
+                        className="prompt-bar__waveform-btn prompt-bar__waveform-btn--accept"
+                        onClick={acceptDictation}
+                        title="Accept Dictation"
+                      >
+                        <Check size={18} />
+                      </button>
+                    </div>
                   </div>
-                  <div className="prompt-bar__toolbar-right">
-                    <button
-                      className={`prompt-bar__tool-btn ${isListening ? 'prompt-bar__tool-btn--active' : ''}`}
-                      title="Voice input"
-                      onClick={() => {
-                        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) return;
-                        if (isListening) {
-                          recognitionRef.current?.stop();
-                          setIsListening(false);
-                          return;
-                        }
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        const W = window as any;
-                        const SpeechRecognitionAPI = W.SpeechRecognition || W.webkitSpeechRecognition;
-                        if (!SpeechRecognitionAPI) return;
-                        const recognition = new SpeechRecognitionAPI();
-                        recognition.continuous = false;
-                        recognition.interimResults = true;
-                        recognition.lang = 'en-US';
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        recognition.onresult = (event: any) => {
-                          let transcript = '';
-                          for (let i = 0; i < event.results.length; i++) {
-                            transcript += event.results[i][0].transcript;
-                          }
-                          setPromptValue(prev => {
-                            const base = prev.replace(/\s*\[listening\.\.\.]\s*$/, '');
-                            return base + (base ? ' ' : '') + transcript;
-                          });
-                        };
-                        recognition.onend = () => setIsListening(false);
-                        recognition.onerror = () => setIsListening(false);
-                        recognitionRef.current = recognition;
-                        recognition.start();
-                        setIsListening(true);
-                      }}
-                    >
-                      {isListening && <span className="prompt-bar__recording-dot" />}
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" y1="19" x2="12" y2="23" /><line x1="8" y1="23" x2="16" y2="23" /></svg>
-                    </button>
-                    <button
-                      className={`prompt-bar__mode ${activeMode === 'research' ? 'prompt-bar__mode--active' : ''}`}
-                      onClick={() => setActiveMode('research')}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-                      Research
-                    </button>
-                    <button
-                      className={`prompt-bar__mode ${activeMode === 'create' ? 'prompt-bar__mode--active' : ''}`}
-                      onClick={() => setActiveMode('create')}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
-                      Create
-                    </button>
-                    <button className="prompt-bar__send" title="Go" onClick={handleSubmit}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="5" y1="12" x2="19" y2="12" />
-                        <polyline points="12 5 19 12 12 19" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
+                )}
+
+                {/* ── Normal Input Mode ── */}
+                {!isListening && (
+                  <>
+                    {/* Textarea area */}
+                    <div className="prompt-bar__text">
+                      <textarea
+                        ref={inputRef}
+                        className="prompt-bar__input"
+                        value={promptValue}
+                        rows={1}
+                        onChange={handleTextareaChange}
+                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); } }}
+                        placeholder={promptValue ? '' : undefined}
+                      />
+                      {!promptValue && (
+                        <div className="prompt-bar__placeholder-anim">
+                          <span>{placeholder}</span>
+                          <span className="prompt-bar__cursor" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Attached file chip */}
+                    {attachedFile && (
+                      <div className="prompt-bar__file-chip">
+                        <span>📎 {attachedFile.name}</span>
+                        <button onClick={() => setAttachedFile(null)} title="Remove file">&times;</button>
+                      </div>
+                    )}
+
+                    {/* Bottom control row */}
+                    <div className="prompt-bar__controls">
+                      <button
+                        className="prompt-bar__attach-btn"
+                        title="Attach file"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <Plus size={20} />
+                      </button>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        className="sr-only"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) setAttachedFile(f);
+                          e.target.value = '';
+                        }}
+                      />
+                      <div className="prompt-bar__controls-right">
+                        <button
+                          className="prompt-bar__mic-btn"
+                          title="Voice input"
+                          onClick={startDictation}
+                        >
+                          <Mic size={18} />
+                        </button>
+                        <button
+                          className={`prompt-bar__send-btn ${promptValue.trim() ? 'prompt-bar__send-btn--active' : ''}`}
+                          title="Send"
+                          onClick={handleSubmit}
+                          disabled={!promptValue.trim()}
+                        >
+                          <ArrowUp size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
 
-          {/* ── Tool Icon Bar (Genspark-style) ── */}
-          <div className="tool-icon-bar">
-            {TOOL_CATEGORIES.map((cat, ci) => (
-              <div key={ci} className="tool-icon-bar__group">
-                <span className="tool-icon-bar__label">{cat.label}</span>
-                <div className="tool-icon-bar__icons">
-                  {cat.tools.map((tool) => (
-                    <div
-                      key={tool.href}
-                      className="tool-icon-bar__item"
-                      onMouseEnter={() => setHoveredTool(tool.href)}
-                      onMouseLeave={() => setHoveredTool(null)}
-                    >
-                      <Link href={tool.href} className="tool-icon-bar__link">
-                        <span className="tool-icon-bar__icon" style={{ background: tool.bg, color: tool.color }}>{tool.icon}</span>
-                        <span className="tool-icon-bar__name">{tool.name}</span>
-                      </Link>
-                      {hoveredTool === tool.href && (
-                        <div className="tool-icon-bar__tooltip">
-                          <ul>
-                            {tool.tips.map((tip, ti) => <li key={ti}>{tip}</li>)}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
+          {/* ── Capsule Suggestion Pills ── */}
+          <div className="prompt-capsules">
+            {CAPSULE_SUGGESTIONS.map((capsule, i) => (
+              <button
+                key={i}
+                className="prompt-capsule"
+                onClick={() => handleCapsuleClick(capsule.prompt)}
+              >
+                <capsule.icon size={16} />
+                <span>{capsule.label}</span>
+              </button>
             ))}
           </div>
         </section>
 
-        {/* ── Models Ticker ── */}
+        {/* ── Engines Ticker ── */}
         <section className="models-section reveal" id="models" ref={modelsRef as React.RefObject<HTMLElement>}>
           <div className="models-section__header">
             <span className="section-label">Why We&apos;re Different</span>
-            <h2 className="section-title">4 world-class AIs, working together &mdash; not against each other.</h2>
+            <h2 className="section-title">4 specialized engines, working together &mdash; not against each other.</h2>
           </div>
           <div className="models-marquee">
             <div className="models-marquee__track">
-              {[...AI_MODELS, ...AI_MODELS].map((m, i) => (
+              {[...AI_ENGINES, ...AI_ENGINES].map((m, i) => (
                 <div key={i} className="model-chip">
                   <div className="model-chip__info">
                     <span className="model-chip__name">{m.name}</span>
-                    <span className="model-chip__provider">{m.provider}</span>
+                    <span className="model-chip__provider">{m.desc}</span>
                   </div>
                 </div>
               ))}
@@ -522,8 +576,8 @@ export default function HomePage() {
             </div>
             <div className="how-step">
               <div className="how-step__number">2</div>
-              <h3 className="how-step__title">We pick the best AI</h3>
-              <p className="how-step__desc">Clarix routes to OpenAI, Anthropic, Google, or DeepSeek automatically. You get the best result without choosing a model.</p>
+              <h3 className="how-step__title">We pick the best engine</h3>
+              <p className="how-step__desc">Clarix automatically routes to the ideal engine for your task &mdash; Speed, Writer, Pro, or Research. You get the best result every time, without lifting a finger.</p>
             </div>
             <div className="how-step__connector">
               <svg width="40" height="2" viewBox="0 0 40 2"><line x1="0" y1="1" x2="40" y2="1" stroke="var(--accent-gold)" strokeWidth="2" strokeDasharray="4 4" opacity="0.4" /></svg>
@@ -575,11 +629,11 @@ export default function HomePage() {
           <div className="feature-card feature-card--wide">
             <div className="feature-card__glow" />
             <div className="feature-card__content">
-              <span className="feature-card__label">Smart AI Routing</span>
-              <h3 className="feature-card__title">The best AI for every task &mdash; chosen for you, automatically</h3>
+              <span className="feature-card__label">Smart Engine Routing</span>
+              <h3 className="feature-card__title">The best engine for every task &mdash; chosen for you, automatically</h3>
               <p className="feature-card__desc">
-                Stop guessing which AI to use. Clarix analyzes your request and sends it
-                to whichever model is best at that kind of work &mdash; writing, coding,
+                Stop guessing which tool to use. Clarix analyzes your request and routes it
+                to whichever engine is best at that kind of work &mdash; writing, coding,
                 research, or quick answers. You just type. We handle the rest.
               </p>
               <Link href="/chat" className="feature-card__cta">
@@ -624,8 +678,7 @@ export default function HomePage() {
               <ul className="pricing-card__features">
                 <li>&#x2713; 200 credits per month</li>
                 <li>&#x2713; All 15 AI tools</li>
-                <li>&#x2713; All 4 AI models</li>
-                <li>&#x2713; Smart AI routing</li>
+                <li>&#x2713; Smart engine routing</li>
                 <li>&#x2713; Custom AI agents</li>
                 <li>&#x2713; 1 GB Drive storage</li>
                 <li>&#x2713; No credit card needed</li>
@@ -639,11 +692,11 @@ export default function HomePage() {
               <ul className="pricing-card__features">
                 <li>&#x2713; 30,000 credits/month</li>
                 <li>&#x2713; All 15 AI tools</li>
-                <li>&#x2713; All 4 AI models</li>
-                <li>&#x2713; Smart AI routing</li>
+                <li>&#x2713; Smart engine routing</li>
+                <li>&#x2713; Priority processing</li>
                 <li>&#x2713; Custom AI agents</li>
-                <li>&#x2713; 1 GB Drive storage</li>
-                <li>&#x2713; Email support</li>
+                <li>&#x2713; 10 GB Drive storage</li>
+                <li>&#x2713; Priority email support</li>
               </ul>
               <Link href="/chat" className="pricing-card__btn pricing-card__btn--gold">Start Pro Trial</Link>
             </div>
@@ -657,29 +710,25 @@ export default function HomePage() {
               <div className="topup-card">
                 <span className="topup-card__credits">2,500 credits</span>
                 <span className="topup-card__price">$5</span>
-                <span className="topup-card__rate">$0.002/credit</span>
               </div>
               <div className="topup-card">
                 <span className="topup-card__credits">10,000 credits</span>
                 <span className="topup-card__price">$15</span>
-                <span className="topup-card__rate">$0.0015/credit</span>
                 <span className="topup-card__save">Save 25%</span>
               </div>
               <div className="topup-card topup-card--popular">
                 <span className="topup-card__badge">Best Value</span>
                 <span className="topup-card__credits">50,000 credits</span>
                 <span className="topup-card__price">$59</span>
-                <span className="topup-card__rate">$0.00118/credit</span>
                 <span className="topup-card__save">Save 41%</span>
               </div>
               <div className="topup-card">
                 <span className="topup-card__credits">100,000 credits</span>
                 <span className="topup-card__price">$99</span>
-                <span className="topup-card__rate">$0.00099/credit</span>
                 <span className="topup-card__save">Save 50%</span>
               </div>
             </div>
-            <p className="topup-section__note">Pro subscribers get 30,000 credits/mo at $0.00097/credit &mdash; the lowest rate.</p>
+            <p className="topup-section__note">Pro subscribers get the best value at 30,000 credits/mo included in their plan.</p>
           </div>
         </section>
 
@@ -791,7 +840,7 @@ export default function HomePage() {
               <div className="login-modal__prompt-preview">
                 <span className="login-modal__prompt-label">Your prompt</span>
                 <p className="login-modal__prompt-text">&ldquo;{promptValue}&rdquo;</p>
-                <span className="login-modal__prompt-mode">Mode: {activeMode === 'research' ? '🔍 Research' : '⚡ Create'}</span>
+                <span className="login-modal__prompt-mode">Your prompt will be processed by the best AI for this task</span>
               </div>
             )}
             {loginError && (

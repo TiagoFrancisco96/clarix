@@ -18,11 +18,11 @@ interface GeneratedVideo {
 }
 
 const VIDEO_MODELS = [
-    { id: 'seedance-2.0', name: 'Seedance 2.0', provider: 'fal.ai', color: '#a78bfa', description: 'Best value · multi-shot · audio', credits: 25 },
-    { id: 'kling-3', name: 'Kling 3.0', provider: 'fal.ai', color: '#ff6b35', description: 'Realistic people · great physics', credits: 40 },
-    { id: 'veo-3.1-fast', name: 'Veo 3.1 Fast', provider: 'Google', color: '#4285f4', description: 'Good quality · faster · cheaper', credits: 40 },
-    { id: 'veo-3.1', name: 'Veo 3.1', provider: 'Google', color: '#34a853', description: 'Best quality · 4K with sound', credits: 75 },
-    { id: 'runway-gen4.5', name: 'Runway Gen-4.5', provider: 'Runway', color: '#8b5cf6', description: 'Director control · creative effects', credits: 100 },
+    { id: 'seedance-2.0', name: 'Clarix Motion', provider: 'Clarix', color: '#a78bfa', description: 'Best value · multi-shot · audio', credits: 25 },
+    { id: 'kling-3', name: 'Clarix Cinematic', provider: 'Clarix', color: '#ff6b35', description: 'Realistic people · great physics', credits: 40 },
+    { id: 'veo-3.1-fast', name: 'Clarix Fast', provider: 'Clarix', color: '#4285f4', description: 'Good quality · faster · cheaper', credits: 40 },
+    { id: 'veo-3.1', name: 'Clarix Ultra', provider: 'Clarix', color: '#34a853', description: 'Best quality · 4K with sound', credits: 75 },
+    { id: 'runway-gen4.5', name: 'Clarix Director', provider: 'Clarix', color: '#8b5cf6', description: 'Director control · creative effects', credits: 100 },
 ];
 
 const DURATIONS = ['4s', '8s', '10s', '15s'];

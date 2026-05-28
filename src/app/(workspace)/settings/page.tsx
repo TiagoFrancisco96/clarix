@@ -15,23 +15,23 @@ interface ApiKey {
 
 /* ── Data ── */
 const DEFAULT_API_KEYS: ApiKey[] = [
-  { id: 'openai', provider: 'OpenAI', icon: '🟢', masked: '', isSet: false },
-  { id: 'anthropic', provider: 'Anthropic', icon: '🟠', masked: '', isSet: false },
-  { id: 'google', provider: 'Google AI', icon: '🔵', masked: '', isSet: false },
-  { id: 'xai', provider: 'xAI (Grok)', icon: '⚪', masked: '', isSet: false },
-  { id: 'deepseek', provider: 'DeepSeek', icon: '🟣', masked: '', isSet: false },
+  { id: 'openai', provider: 'Writer Engine', icon: '🟢', masked: '', isSet: false },
+  { id: 'anthropic', provider: 'Pro Engine', icon: '🟠', masked: '', isSet: false },
+  { id: 'google', provider: 'Research Engine', icon: '🔵', masked: '', isSet: false },
+  { id: 'xai', provider: 'Grok Engine', icon: '⚪', masked: '', isSet: false },
+  { id: 'deepseek', provider: 'Speed Engine', icon: '🟣', masked: '', isSet: false },
 ];
 
 const AI_MODELS = [
   { id: 'auto', name: 'Auto (Best Available)', provider: '' },
-  { id: 'deepseek-v4-flash', name: 'DeepSeek V4-Flash', provider: 'DeepSeek' },
-  { id: 'claude-sonnet-4.6', name: 'Claude Sonnet 4.6', provider: 'Anthropic' },
-  { id: 'gpt-5.4', name: 'GPT-5.4', provider: 'OpenAI' },
-  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google' },
-  { id: 'grok-4.3', name: 'Grok 4.3', provider: 'xAI' },
-  { id: 'gpt-5.5', name: 'GPT-5.5', provider: 'OpenAI' },
-  { id: 'claude-opus-4.7', name: 'Claude Opus 4.7', provider: 'Anthropic' },
-  { id: 'deepseek-v4', name: 'DeepSeek V4-Pro', provider: 'DeepSeek' },
+  { id: 'deepseek-v4-flash', name: 'Speed Engine', provider: 'Clarix' },
+  { id: 'claude-sonnet-4.6', name: 'Pro Engine', provider: 'Clarix' },
+  { id: 'gpt-5.4', name: 'Writer Engine', provider: 'Clarix' },
+  { id: 'gemini-2.5-pro', name: 'Research Engine', provider: 'Clarix' },
+  { id: 'grok-4.3', name: 'Grok Engine', provider: 'Clarix' },
+  { id: 'gpt-5.5', name: 'Writer+ Engine', provider: 'Clarix' },
+  { id: 'claude-opus-4.7', name: 'Pro+ Engine', provider: 'Clarix' },
+  { id: 'deepseek-v4', name: 'Speed+ Engine', provider: 'Clarix' },
 ];
 
 /* ── Tabs ── */
@@ -78,9 +78,9 @@ export default function SettingsPage() {
     storageUsed: 0, // TODO: fetch from /api/drive/usage
     storageTotal: 1, // 1 GB for all plans (verified in drive route)
     topModels: [
-      { name: 'DeepSeek V4-Flash', pct: 38 },
-      { name: 'Claude Sonnet 4.6', pct: 28 },
-      { name: 'GPT-5.5', pct: 18 },
+      { name: 'Speed Engine', pct: 38 },
+      { name: 'Pro Engine', pct: 28 },
+      { name: 'Writer+ Engine', pct: 18 },
       { name: 'Other', pct: 16 },
     ],
   };

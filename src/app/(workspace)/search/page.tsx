@@ -39,10 +39,10 @@ const SAMPLE_RESULT: SearchResult = {
 
 <h3>Top AI Coding Assistants</h3>
 <ul>
-<li><strong>Claude Code (Anthropic)</strong> — Leading in autonomous coding with Claude Opus 4.7. Excels at multi-file refactoring and agentic workflows.<sup>[2]</sup></li>
+<li><strong>Agentic Coding Tools</strong> — Leading the shift to autonomous coding. Excels at multi-file refactoring and agentic workflows.<sup>[2]</sup></li>
 <li><strong>GitHub Copilot X</strong> — Deeply integrated with VS Code and GitHub. Best for inline completions and PR reviews.<sup>[3]</sup></li>
 <li><strong>Cursor AI</strong> — Purpose-built IDE with AI-first experience. Strong at codebase-aware edits and chat.<sup>[4]</sup></li>
-<li><strong>Google Jules</strong> — Powered by Gemini 2.5 Pro. Excellent at understanding large codebases and generating tests.<sup>[5]</sup></li>
+<li><strong>AI-Powered IDEs</strong> — Excellent at understanding large codebases and generating tests automatically.<sup>[5]</sup></li>
 </ul>
 
 <h3>Key Trends</h3>
@@ -51,14 +51,14 @@ const SAMPLE_RESULT: SearchResult = {
 <p>Pricing has also become more competitive, with most tools offering generous free tiers and team plans under $30/user/month.<sup>[3]</sup></p>`,
     sources: [
         { id: 's1', title: 'The State of AI Coding in 2026', url: 'techcrunch.com/ai-coding-2026', favicon: '📰', faviconBg: '#2ecc71', relevance: 98 },
-        { id: 's2', title: 'Claude Code: Full Autonomy Review', url: 'arstechnica.com/claude-code', favicon: '🔬', faviconBg: '#9b59b6', relevance: 95 },
+        { id: 's2', title: 'Agentic Coding: Full Autonomy Review', url: 'arstechnica.com/agentic-coding', favicon: '🔬', faviconBg: '#9b59b6', relevance: 95 },
         { id: 's3', title: 'GitHub Copilot X: What\'s New', url: 'github.blog/copilot-x-2026', favicon: '🐙', faviconBg: '#333', relevance: 92 },
         { id: 's4', title: 'Cursor AI Deep Dive', url: 'cursor.so/blog/ai-first-ide', favicon: '⚡', faviconBg: '#3498db', relevance: 88 },
-        { id: 's5', title: 'Google Jules vs The Competition', url: 'theverge.com/google-jules', favicon: '📱', faviconBg: '#e74c3c', relevance: 85 },
+        { id: 's5', title: 'AI IDEs vs The Competition', url: 'theverge.com/ai-ides-2026', favicon: '📱', faviconBg: '#e74c3c', relevance: 85 },
         { id: 's6', title: 'Agentic Coding Benchmark Results', url: 'arxiv.org/agent-coding-bench', favicon: '📄', faviconBg: '#e67e22', relevance: 82 },
     ],
     followUps: [
-        'How does Claude Code compare to Cursor AI for large projects?',
+        'How do agentic coding tools compare for large projects?',
         'What are the pricing differences between these tools?',
         'Which AI coding tool is best for beginners?',
         'Can AI coding assistants replace junior developers?',

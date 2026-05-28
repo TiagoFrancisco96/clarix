@@ -15,11 +15,11 @@ interface GeneratedImage {
 }
 
 const IMAGE_MODELS = [
-    { id: 'flux-schnell', name: 'FLUX Schnell', provider: 'Black Forest Labs', description: 'Fastest · most affordable · drafts', credits: 2 },
-    { id: 'flux-2-pro', name: 'FLUX.2 Pro', provider: 'Black Forest Labs', description: 'Professional photos · realistic', credits: 8 },
-    { id: 'ideogram-v3', name: 'Ideogram V3', provider: 'Ideogram', description: 'Best for logos, text & typography', credits: 8 },
-    { id: 'gpt-image-2', name: 'GPT Image 2', provider: 'OpenAI', description: 'Best quality · realistic scenes', credits: 15 },
-    { id: 'nano-banana-pro', name: 'Nano Banana Pro', provider: 'Google', description: 'Studio-quality realism (Imagen 4)', credits: 20 },
+    { id: 'flux-schnell', name: 'Clarix Draft', provider: 'Clarix', description: 'Fastest · most affordable · drafts', credits: 2 },
+    { id: 'flux-2-pro', name: 'Clarix Studio', provider: 'Clarix', description: 'Professional photos · realistic', credits: 8 },
+    { id: 'ideogram-v3', name: 'Clarix Typography', provider: 'Clarix', description: 'Best for logos, text & typography', credits: 8 },
+    { id: 'gpt-image-2', name: 'Clarix Ultra', provider: 'Clarix', description: 'Best quality · realistic scenes', credits: 15 },
+    { id: 'nano-banana-pro', name: 'Clarix Realism', provider: 'Clarix', description: 'Studio-quality realism', credits: 20 },
 ];
 
 const STYLE_PRESETS = [

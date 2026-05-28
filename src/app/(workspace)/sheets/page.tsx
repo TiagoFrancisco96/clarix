@@ -7,10 +7,10 @@ import './sheets.css';
 
 /* ── Types ── */
 const SHEET_MODELS = [
-    { id: 'deepseek-v4-flash', name: 'DeepSeek V4-Flash', provider: 'DeepSeek', color: '#a78bfa', description: 'Fastest · most affordable', credits: 1 },
-    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google', color: '#4285f4', description: 'Fast · great with data', credits: 3 },
-    { id: 'claude-sonnet-4.6', name: 'Claude Sonnet 4.6', provider: 'Anthropic', color: '#e8915a', description: 'Smart reasoning · finds trends', credits: 5 },
-    { id: 'gpt-5.5', name: 'GPT-5.5', provider: 'OpenAI', color: '#10a37f', description: 'Best with formulas & data analysis', credits: 15 },
+    { id: 'deepseek-v4-flash', name: 'Speed Engine', provider: 'Clarix', color: '#a78bfa', description: 'Fastest · most affordable', credits: 1 },
+    { id: 'gemini-2.5-flash', name: 'Flash Engine', provider: 'Clarix', color: '#4285f4', description: 'Fast · great with data', credits: 3 },
+    { id: 'claude-sonnet-4.6', name: 'Pro Engine', provider: 'Clarix', color: '#e8915a', description: 'Smart reasoning · finds trends', credits: 5 },
+    { id: 'gpt-5.5', name: 'Writer Engine', provider: 'Clarix', color: '#10a37f', description: 'Best with formulas & data analysis', credits: 15 },
 ];
 
 const COLUMNS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];

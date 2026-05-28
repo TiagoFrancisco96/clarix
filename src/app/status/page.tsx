@@ -151,7 +151,7 @@ export default function StatusPage() {
 
                 <h2>Dynamic Heartbeat Monitor</h2>
                 <p>
-                    This dashboard checks our services every 30 seconds to show you how fast each AI provider is responding. If any provider (like OpenAI or Google) goes offline, our system automatically switches to a backup provider so your workspace keeps working normally.
+                    This dashboard checks our services every 30 seconds to show you how fast each AI engine is responding. If any engine goes offline, our system automatically switches to a backup engine so your workspace keeps working normally.
                 </p>
 
                 {data && (

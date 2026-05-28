@@ -13,11 +13,11 @@ interface DevMessage {
 }
 
 const DEV_MODELS = [
-    { id: 'deepseek-v4-flash', name: 'DeepSeek V4-Flash', provider: 'DeepSeek', color: '#a78bfa', description: 'Fastest · everyday coding', credits: 1 },
-    { id: 'claude-sonnet-4.6', name: 'Claude Sonnet 4.6', provider: 'Anthropic', color: '#e8915a', description: 'Smart coder · great value', credits: 5 },
-    { id: 'gpt-5.5', name: 'GPT-5.5', provider: 'OpenAI', color: '#10a37f', description: 'Thinks deeply · large projects', credits: 15 },
-    { id: 'claude-opus-4.7', name: 'Claude Opus 4.7', provider: 'Anthropic', color: '#cc785c', description: 'Best coder · multi-file edits', credits: 15 },
-    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google', color: '#4285f4', description: 'Super fast · great for quick tests', credits: 3 },
+    { id: 'deepseek-v4-flash', name: 'Speed Engine', provider: 'Clarix', color: '#a78bfa', description: 'Fastest · everyday coding', credits: 1 },
+    { id: 'claude-sonnet-4.6', name: 'Pro Engine', provider: 'Clarix', color: '#e8915a', description: 'Smart coder · great value', credits: 5 },
+    { id: 'gpt-5.5', name: 'Writer Engine', provider: 'Clarix', color: '#10a37f', description: 'Thinks deeply · large projects', credits: 15 },
+    { id: 'claude-opus-4.7', name: 'Pro+ Engine', provider: 'Clarix', color: '#cc785c', description: 'Best coder · multi-file edits', credits: 15 },
+    { id: 'gemini-2.5-flash', name: 'Flash Engine', provider: 'Clarix', color: '#4285f4', description: 'Super fast · great for quick tests', credits: 3 },
 ];
 
 const SUGGESTIONS = [
