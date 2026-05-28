@@ -13,6 +13,10 @@ export default function LoginPage() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [showForgot, setShowForgot] = useState(false);
+    const [forgotEmail, setForgotEmail] = useState('');
+    const [forgotSent, setForgotSent] = useState(false);
+    const [forgotLoading, setForgotLoading] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -56,6 +60,26 @@ export default function LoginPage() {
         });
     };
 
+    const handleForgotPassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!forgotEmail.trim()) return;
+        setForgotLoading(true);
+        try {
+            const res = await fetch('/api/auth/forget-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: forgotEmail, redirectTo: '/login' }),
+            });
+            if (!res.ok) throw new Error('Failed');
+            setForgotSent(true);
+        } catch {
+            // Show success even if it fails (don't leak whether email exists)
+            setForgotSent(true);
+        } finally {
+            setForgotLoading(false);
+        }
+    };
+
     return (
         <div className="login-page">
             <div className="login-bg" />
@@ -67,12 +91,14 @@ export default function LoginPage() {
                 </div>
 
                 <h1 className="login-title">
-                    {isSignUp ? 'Create your account' : 'Welcome back'}
+                    {showForgot ? 'Reset your password' : isSignUp ? 'Create your account' : 'Welcome back'}
                 </h1>
                 <p className="login-subtitle">
-                    {isSignUp
-                        ? 'Start creating with AI today'
-                        : 'Sign in to your AI workspace'}
+                    {showForgot
+                        ? 'Enter your email and we\u2019ll send you a reset link'
+                        : isSignUp
+                            ? 'Start creating with AI today'
+                            : 'Sign in to your AI workspace'}
                 </p>
 
                 {/* Google OAuth */}
@@ -95,6 +121,46 @@ export default function LoginPage() {
                 </div>
 
                 {/* Email/Password Form */}
+                {showForgot ? (
+                    forgotSent ? (
+                        <div className="login-form" style={{ textAlign: 'center', padding: '20px 0' }}>
+                            <div style={{ fontSize: '2rem', marginBottom: '12px' }}>✉️</div>
+                            <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>
+                                Check your email for a password reset link.
+                            </p>
+                            <button
+                                type="button"
+                                className="login-submit"
+                                onClick={() => { setShowForgot(false); setForgotSent(false); setForgotEmail(''); }}
+                            >
+                                Back to Sign In
+                            </button>
+                        </div>
+                    ) : (
+                        <form onSubmit={handleForgotPassword} className="login-form">
+                            <div className="login-field">
+                                <label htmlFor="forgot-email">Email</label>
+                                <input
+                                    id="forgot-email"
+                                    type="email"
+                                    placeholder="you@example.com"
+                                    value={forgotEmail}
+                                    onChange={(e) => setForgotEmail(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            {error && <div className="login-error">{error}</div>}
+                            <button type="submit" className="login-submit" disabled={forgotLoading}>
+                                {forgotLoading ? <span className="login-spinner" /> : 'Send Reset Link'}
+                            </button>
+                            <p className="login-toggle">
+                                <button type="button" onClick={() => { setShowForgot(false); setError(''); }}>
+                                    ← Back to Sign In
+                                </button>
+                            </p>
+                        </form>
+                    )
+                ) : (
                 <form onSubmit={handleSubmit} className="login-form">
                     {isSignUp && (
                         <div className="login-field">
@@ -135,6 +201,14 @@ export default function LoginPage() {
                         />
                     </div>
 
+                    {!isSignUp && (
+                        <p className="login-forgot">
+                            <button type="button" onClick={() => { setShowForgot(true); setError(''); }}>
+                                Forgot password?
+                            </button>
+                        </p>
+                    )}
+
                     {error && <div className="login-error">{error}</div>}
 
                     <button
@@ -151,6 +225,7 @@ export default function LoginPage() {
                         )}
                     </button>
                 </form>
+                )}
 
                 <p className="login-toggle">
                     {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
@@ -159,6 +234,7 @@ export default function LoginPage() {
                         onClick={() => {
                             setIsSignUp(!isSignUp);
                             setError('');
+                            setShowForgot(false);
                         }}
                     >
                         {isSignUp ? 'Sign in' : 'Sign up'}

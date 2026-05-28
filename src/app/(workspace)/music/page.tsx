@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { useCreations } from '@/hooks/useCreations';
+import { useToast } from '@/components/Toast';
 import './music.css';
 
 /* ── Types ── */
@@ -556,6 +557,7 @@ export default function MusicPage() {
 
     const currentModel = MUSIC_MODELS.find(m => m.id === selectedModel) || MUSIC_MODELS[0];
     const loadingWaveform = useMemo(() => generateWaveform(80), []);
+    const { toast } = useToast();
 
     // Persistence
     const { creations, isLoading: isLoadingCreations, saveCreation } = useCreations('music');
@@ -687,7 +689,7 @@ export default function MusicPage() {
             // Fetch the full audio via our proxy, then save as blob
             const proxyUrl = `/api/music/proxy?url=${encodeURIComponent(track.audioUrl)}`;
             const res = await fetch(proxyUrl);
-            if (!res.ok) { alert('Download failed'); return; }
+            if (!res.ok) { toast('Download failed', 'error'); return; }
             const blob = await res.blob();
             const blobUrl = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -1112,7 +1114,7 @@ export default function MusicPage() {
                                                     <line x1="12" y1="15" x2="12" y2="3" />
                                                 </svg>
                                             </button>
-                                            <button className="music-track__action" title="Share" onClick={() => { navigator.clipboard.writeText(`https://Clarix.ai/music/${track.id}`); alert('Link copied to clipboard!'); }}>
+                                            <button className="music-track__action" title="Share" onClick={() => { navigator.clipboard.writeText(`https://Clarix.ai/music/${track.id}`); toast('Link copied to clipboard!', 'success'); }}>
                                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                                     <circle cx="18" cy="5" r="3" />
                                                     <circle cx="6" cy="12" r="3" />

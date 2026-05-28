@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { headers } from 'next/headers';
+import { checkCredits, getBalance } from '@/lib/creditGuard';
+import { checkRateLimit } from '@/lib/rateLimit';
 
 /* ── Suno Music API ──
  *  POST https://api.sunoapi.org/api/v1/generate
@@ -15,6 +19,14 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'SUNO_API_KEY not configured' }, { status: 500 });
         }
 
+        /* ── Auth Check ── */
+        const headersList = await headers();
+        const session = await auth.api.getSession({ headers: headersList });
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+        const userId = session.user.id;
+
         const body = await req.json();
         const { prompt, style, title, instrumental, model } = body;
 
@@ -24,6 +36,27 @@ export async function POST(req: NextRequest) {
 
         if (prompt === 'dryRun') {
             return NextResponse.json({ taskId: 'dryrun-task-id', message: 'Dry-run generation started', dryRun: true });
+        }
+
+        /* ── Rate Limiting ── */
+        const userCredits = await getBalance(userId);
+        const rateCheck = checkRateLimit(userId, userCredits.plan, 'music');
+        if (!rateCheck.allowed) {
+            return NextResponse.json({
+                error: 'Too many requests',
+                retryAfterSeconds: Math.ceil((rateCheck.retryAfterMs || 60000) / 1000),
+            }, { status: 429 });
+        }
+
+        /* ── Credit Check ── */
+        const creditCheck = await checkCredits(userId, 'music', model || 'suno');
+        if (!creditCheck.allowed) {
+            return NextResponse.json({
+                error: 'Insufficient credits',
+                balance: creditCheck.balance,
+                cost: creditCheck.cost,
+                upgrade_url: '/settings?tab=subscription',
+            }, { status: 402 });
         }
 
         // Map frontend model IDs to Suno model versions

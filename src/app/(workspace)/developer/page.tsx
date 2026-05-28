@@ -133,7 +133,7 @@ export default function DeveloperPage() {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [showModelDropdown]);
 
-    const handleSend = useCallback((text?: string) => {
+    const handleSend = useCallback(async (text?: string) => {
         const messageText = text || input.trim();
         if (!messageText || isGenerating) return;
 
@@ -149,26 +149,84 @@ export default function DeveloperPage() {
         setInput('');
         setIsGenerating(true);
 
-        const sum = messageText.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-        const delay = 2000 + (sum % 1500);
+        try {
+            const systemPrompt = `You are an expert web developer. Generate a COMPLETE, single-file HTML page based on the user's request. Include all CSS inline in a <style> tag and all JavaScript inline in a <script> tag. The page should:
+- Be responsive and mobile-friendly
+- Use a modern, dark theme with beautiful gradients
+- Include smooth animations and hover effects
+- Use Inter or system-ui fonts
+- Be production-quality, not a skeleton
+Output ONLY the HTML code starting with <!DOCTYPE html>. No explanations or markdown.`;
 
-        setTimeout(() => {
-            const aiNow = Date.now();
+            const res = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        ...messages.map(m => ({ role: m.role, content: m.content })),
+                        { role: 'user', content: messageText },
+                    ],
+                    model: selectedModel,
+                }),
+            });
+
+            if (res.status === 402) {
+                const aiMsg: DevMessage = { id: (Date.now()).toString(), role: 'assistant', content: 'You\'re out of credits. Please upgrade your plan in Settings → Subscription to continue building.', timestamp: Date.now() };
+                setMessages(prev => [...prev, aiMsg]);
+                setIsGenerating(false);
+                return;
+            }
+
+            let fullText = '';
+            const reader = res.body?.getReader();
+            const decoder = new TextDecoder();
+            if (reader) {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    const chunk = decoder.decode(value, { stream: true });
+                    const lines = chunk.split('\n').filter(l => l.startsWith('data: '));
+                    for (const line of lines) {
+                        try {
+                            const data = JSON.parse(line.slice(6));
+                            if (data.type === 'chunk') fullText += data.text;
+                            if (data.type === 'done' && data.fullText) fullText = data.fullText;
+                        } catch { /* skip */ }
+                    }
+                }
+            }
+
+            // Extract HTML code if wrapped in code fences
+            const htmlMatch = fullText.match(/```html?\s*\n([\s\S]*?)```/);
+            const code = htmlMatch ? htmlMatch[1].trim() : fullText.trim();
+            const isValidHtml = code.includes('<!DOCTYPE') || code.includes('<html') || code.includes('<div');
+
             const aiMsg: DevMessage = {
-                id: (aiNow + 1).toString(),
+                id: (Date.now()).toString(),
                 role: 'assistant',
-                content: `I've created a responsive landing page for you with a dark theme, gradient heading, and a call-to-action button with hover effects. The design uses Inter font and a purple-blue gradient palette.\n\nYou can see the live preview on the right, or switch to the Code tab to view the source. Want me to add any features like a navigation bar, animations, or additional sections?`,
-                timestamp: aiNow,
+                content: isValidHtml
+                    ? `I've generated the code for you. Check the live preview on the right, or switch to the Code tab to view the source. Want me to make any changes?`
+                    : fullText,
+                timestamp: Date.now(),
             };
+
             setMessages(prev => {
                 const nextMessages = [...prev, aiMsg];
-                saveCreation({ title: messageText.slice(0, 80), content: SAMPLE_CODE, metadata: { model: selectedModel, messages: nextMessages } });
+                if (isValidHtml) {
+                    setGeneratedCode(code);
+                    saveCreation({ title: messageText.slice(0, 80), content: code, metadata: { model: selectedModel, messages: nextMessages } });
+                }
                 return nextMessages;
             });
-            setGeneratedCode(SAMPLE_CODE);
+        } catch (err) {
+            console.error('[Developer] Error:', err);
+            const errorMsg: DevMessage = { id: (Date.now()).toString(), role: 'assistant', content: 'Sorry, something went wrong generating the code. Please try again.', timestamp: Date.now() };
+            setMessages(prev => [...prev, errorMsg]);
+        } finally {
             setIsGenerating(false);
-        }, delay);
-    }, [input, isGenerating, selectedModel, saveCreation]);
+        }
+    }, [input, isGenerating, selectedModel, messages, saveCreation]);
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {

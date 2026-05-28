@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useCreations } from '@/hooks/useCreations';
+import { useToast } from '@/components/Toast';
 import './slides.css';
 
 /* ── Types ── */
@@ -53,6 +54,7 @@ export default function SlidesPage() {
 
     const currentModel = SLIDE_MODELS.find(m => m.id === selectedModel) || SLIDE_MODELS[0];
     const currentTheme = THEMES.find(t => t.id === selectedTheme) || THEMES[0];
+    const { toast } = useToast();
 
     // Persistence
     const { creations, isLoading: isLoadingSlides, saveCreation } = useCreations('slides');
@@ -76,11 +78,66 @@ export default function SlidesPage() {
         }
     }, [isLoadingSlides, creations, deck]);
 
-    const handleGenerate = () => {
+    const handleGenerate = async () => {
         if (!prompt.trim() || isGenerating) return;
         setIsGenerating(true);
-        setTimeout(() => {
-            const slides = SAMPLE_SLIDES.slice(0, slideCount);
+
+        try {
+            const res = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    messages: [
+                        {
+                            role: 'system',
+                            content: `You are a professional presentation designer. Create exactly ${slideCount} slides for a presentation. Return ONLY a JSON array of objects, each with "title" (string) and "bullets" (array of 2-4 short strings). No markdown, no explanations, no code fences. Output raw JSON only.`,
+                        },
+                        { role: 'user', content: prompt.trim() },
+                    ],
+                    model: selectedModel,
+                }),
+            });
+
+            if (res.status === 402) {
+                toast('You\'re out of credits. Upgrade in Settings → Subscription.', 'warning');
+                setIsGenerating(false);
+                return;
+            }
+
+            let fullText = '';
+            const reader = res.body?.getReader();
+            const decoder = new TextDecoder();
+            if (reader) {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    const chunk = decoder.decode(value, { stream: true });
+                    const lines = chunk.split('\n').filter(l => l.startsWith('data: '));
+                    for (const line of lines) {
+                        try {
+                            const d = JSON.parse(line.slice(6));
+                            if (d.type === 'chunk') fullText += d.text;
+                            if (d.type === 'done' && d.fullText) fullText = d.fullText;
+                        } catch { /* skip */ }
+                    }
+                }
+            }
+
+            // Parse slides from AI response
+            const jsonMatch = fullText.match(/\[[\s\S]*\]/);
+            let slides: SlideContent[] = SAMPLE_SLIDES.slice(0, slideCount);
+            if (jsonMatch) {
+                try {
+                    const parsed = JSON.parse(jsonMatch[0]);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        slides = parsed.map((s: { title?: string; bullets?: string[] }) => ({
+                            title: s.title || 'Untitled',
+                            bullets: Array.isArray(s.bullets) ? s.bullets.map(String) : [],
+                        }));
+                    }
+                } catch { /* use fallback */ }
+            }
+
             const newDeck: SlideDeck = {
                 id: Date.now().toString(),
                 prompt: prompt.trim(),
@@ -90,11 +147,14 @@ export default function SlidesPage() {
                 timestamp: Date.now(),
             };
             setDeck(newDeck);
-            setIsGenerating(false);
-            // Save to server
             const mdContent = slides.map((s, i) => `## Slide ${i + 1}: ${s.title}\n\n${s.bullets.map(b => `- ${b}`).join('\n')}`).join('\n\n---\n\n');
             saveCreation({ title: prompt.trim(), content: mdContent, metadata: { model: selectedModel, theme: selectedTheme, slides } });
-        }, 2500 + Math.random() * 2000);
+        } catch (err) {
+            console.error('[Slides] Error:', err);
+            toast('Failed to generate slides. Please try again.', 'error');
+        } finally {
+            setIsGenerating(false);
+        }
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -150,7 +210,7 @@ export default function SlidesPage() {
                             type="range"
                             className="slides-controls__count-input"
                             min={3}
-                            max={SAMPLE_SLIDES.length}
+                            max={12}
                             value={slideCount}
                             onChange={(e) => setSlideCount(Number(e.target.value))}
                         />

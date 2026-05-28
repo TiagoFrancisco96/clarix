@@ -19,7 +19,7 @@ export async function GET(
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { fileId } = await params;
-    const file = getDriveFile(fileId, user.id);
+    const file = await getDriveFile(fileId, user.id);
     if (!file) return NextResponse.json({ error: 'File not found' }, { status: 404 });
     if (!file.disk_path || !fs.existsSync(file.disk_path)) {
         return NextResponse.json({ error: 'File data missing' }, { status: 404 });
@@ -52,6 +52,6 @@ export async function PATCH(
     if (body.is_favorite !== undefined) updates.is_favorite = body.is_favorite ? 1 : 0;
     if (body.is_deleted !== undefined) updates.is_deleted = body.is_deleted ? 1 : 0;
 
-    updateDriveFile(fileId, user.id, updates);
+    await updateDriveFile(fileId, user.id, updates);
     return NextResponse.json({ success: true });
 }

@@ -2,8 +2,10 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './drive.css';
-
-/* ── Types ── */
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../../convex/_generated/api';
+import { useSession } from '@/lib/auth-client';
+import { Id } from '../../../../convex/_generated/dataModel';
 interface DriveFile {
     id: string;
     user_id: string;
@@ -91,33 +93,47 @@ export default function DrivePage() {
     const [renameValue, setRenameValue] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    /* ── Fetch files ── */
-    const fetchFiles = useCallback(async () => {
-        const params = new URLSearchParams();
-        if (activeQuick === 'trash') {
-            params.set('trash', '1');
-        } else if (activeQuick === 'favorites') {
-            // handled client-side after fetch
-        } else if (activeFolder !== 'all') {
-            params.set('folder', activeFolder);
-        }
-        if (searchQuery) params.set('search', searchQuery);
-        params.set('sort', sortBy);
+    const { data: sessionData } = useSession();
+    const userId = sessionData?.user?.id;
 
-        try {
-            const res = await fetch(`/api/drive?${params.toString()}`);
-            if (res.ok) {
-                const json = await res.json();
-                setData(json);
-            }
-        } catch (err) {
-            console.error('Failed to fetch drive files:', err);
-        } finally {
+    // Use Convex query
+    const rawFiles = useQuery(api.drive.listDriveFiles, userId ? {
+        userId,
+        folder: activeFolder !== 'all' ? activeFolder : undefined,
+        search: searchQuery || undefined,
+        sortBy: sortBy,
+        showDeleted: activeQuick === 'trash'
+    } : "skip");
+
+    const storageUsedConvex = useQuery(api.drive.getDriveStorageUsed, userId ? { userId } : "skip");
+    const folderCountsConvex = useQuery(api.drive.getDriveFolderCounts, userId ? { userId } : "skip");
+
+    const updateFile = useMutation(api.drive.updateDriveFile);
+    const deleteFileMutation = useMutation(api.drive.permanentDeleteDriveFile);
+
+    useEffect(() => {
+        if (rawFiles !== undefined) {
             setLoading(false);
+            // Translate convex return to expected format if needed
+            const files = rawFiles.map(f => ({
+                id: f._id,
+                user_id: f.user_id,
+                name: f.name,
+                type: f.type,
+                source: f.source,
+                size_bytes: f.size_bytes,
+                mime_type: f.mime_type,
+                folder: f.folder,
+                is_favorite: f.is_favorite,
+                is_deleted: f.is_deleted,
+                disk_path: f.disk_path,
+                created_at: new Date(f._creationTime).toISOString(),
+                updated_at: new Date(f._creationTime).toISOString() // Fake updated_at as convex doesn't store it by default
+            }));
+            
+            setData({ files, storageUsed: storageUsedConvex || 0, folderCounts: folderCountsConvex || {} });
         }
-    }, [activeFolder, activeQuick, searchQuery, sortBy]);
-
-    useEffect(() => { fetchFiles(); }, [fetchFiles]);
+    }, [rawFiles, storageUsedConvex, folderCountsConvex]);
 
     /* ── Upload handler ── */
     const uploadFiles = useCallback(async (fileList: FileList | File[]) => {
@@ -134,6 +150,9 @@ export default function DrivePage() {
             formData.append('folder', activeFolder === 'all' ? 'documents' : activeFolder);
 
             try {
+                // Keep file upload on the Next.js API route because Convex requires a specific upload flow 
+                // and keeping Next.js API handles disk saving nicely for now.
+                // We'll update Next.js API later to write to Convex.
                 await fetch('/api/drive', { method: 'POST', body: formData });
             } catch (err) {
                 console.error('Upload failed:', err);
@@ -143,8 +162,7 @@ export default function DrivePage() {
 
         setUploading(false);
         setUploadProgress(0);
-        fetchFiles();
-    }, [activeFolder, fetchFiles]);
+    }, [activeFolder]);
 
     /* ── Drag & Drop ── */
     const handleDragOver = useCallback((e: React.DragEvent) => { e.preventDefault(); setDragOver(true); }, []);
@@ -157,42 +175,29 @@ export default function DrivePage() {
 
     /* ── Actions ── */
     const toggleFavorite = async (fileId: string, current: number) => {
-        await fetch(`/api/drive/${fileId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ is_favorite: !current }),
-        });
-        fetchFiles();
+        if (!userId) return;
+        await updateFile({ fileId: fileId as Id<"drive_files">, userId, isFavorite: current ? 0 : 1 });
     };
 
     const deleteFile = async (fileId: string, permanent = false) => {
-        await fetch('/api/drive', {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fileId, permanent }),
-        });
+        if (!userId) return;
+        if (permanent) {
+            await deleteFileMutation({ fileId: fileId as Id<"drive_files">, userId });
+        } else {
+            await updateFile({ fileId: fileId as Id<"drive_files">, userId, isDeleted: 1 });
+        }
         setSelectedFile(null);
-        fetchFiles();
     };
 
     const restoreFile = async (fileId: string) => {
-        await fetch(`/api/drive/${fileId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ is_deleted: false }),
-        });
-        fetchFiles();
+        if (!userId) return;
+        await updateFile({ fileId: fileId as Id<"drive_files">, userId, isDeleted: 0 });
     };
 
     const renameFile = async (fileId: string) => {
-        if (!renameValue.trim()) return;
-        await fetch(`/api/drive/${fileId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: renameValue.trim() }),
-        });
+        if (!userId || !renameValue.trim()) return;
+        await updateFile({ fileId: fileId as Id<"drive_files">, userId, name: renameValue.trim() });
         setRenamingFile(null);
-        fetchFiles();
     };
 
     const downloadFile = (fileId: string) => {

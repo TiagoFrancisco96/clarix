@@ -268,6 +268,25 @@
     color: #e6bc5a;
 }
 
+/* Forgot password */
+.login-forgot {
+    text-align: right;
+    margin-top: -8px;
+}
+
+.login-forgot button {
+    background: none;
+    border: none;
+    color: #9a9aaa;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: color 200ms;
+}
+
+.login-forgot button:hover {
+    color: #d4a843;
+}
+
 /* Responsive */
 @media (max-width: 480px) {
     .login-card {

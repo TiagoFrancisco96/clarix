@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
+import { ConvexClientProvider } from "@/components/ConvexClientProvider";
+import { TelemetryProvider } from "@/components/TelemetryProvider";
+import { ToastProvider } from "@/components/Toast";
+import "@/components/toast.css";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -24,8 +28,15 @@ export default function RootLayout({
   return (
     <html lang="en" data-theme="dark" suppressHydrationWarning className={cn("font-sans", geist.variable)}>
       <body suppressHydrationWarning>
-        {children}
+        <ConvexClientProvider>
+          <TelemetryProvider>
+            <ToastProvider>
+              {children}
+            </ToastProvider>
+          </TelemetryProvider>
+        </ConvexClientProvider>
       </body>
     </html>
   );
 }
+

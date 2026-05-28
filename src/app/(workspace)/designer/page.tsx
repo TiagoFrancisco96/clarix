@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useCreations } from '@/hooks/useCreations';
+import { useToast } from '@/components/Toast';
 import './designer.css';
 
 /* ── Types ── */
@@ -12,6 +13,7 @@ interface DesignItem {
     template: string;
     size: string;
     gradient: string;
+    imageUrl?: string;
     timestamp: number;
 }
 
@@ -51,6 +53,7 @@ export default function DesignerPage() {
     const [designs, setDesigns] = useState<DesignItem[]>([]);
 
     const currentModel = DESIGN_MODELS.find(m => m.id === selectedModel) || DESIGN_MODELS[0];
+    const { toast } = useToast();
 
     // Persistence
     const { creations, isLoading: isLoadingDesigns, saveCreation } = useCreations('designer');
@@ -76,10 +79,35 @@ export default function DesignerPage() {
         }
     }, [isLoadingDesigns, creations, designs]);
 
-    const handleGenerate = () => {
+    const handleGenerate = async () => {
         if (!prompt.trim() || isGenerating) return;
         setIsGenerating(true);
-        setTimeout(() => {
+
+        try {
+            const templatePrefix = selectedTemplate !== 'custom'
+                ? `${TEMPLATES.find(t => t.id === selectedTemplate)?.name || ''} design: `
+                : '';
+            const fullPrompt = `${templatePrefix}${prompt.trim()}`;
+
+            const res = await fetch('/api/image/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt: fullPrompt, model: selectedModel }),
+            });
+
+            if (res.status === 402) {
+                toast('You\'re out of credits. Upgrade your plan in Settings → Subscription.', 'warning');
+                setIsGenerating(false);
+                return;
+            }
+
+            if (res.status === 429) {
+                toast('Too many requests. Please wait a moment and try again.', 'warning');
+                setIsGenerating(false);
+                return;
+            }
+
+            const data = await res.json();
             const gradient = generateGradient();
             const newDesign: DesignItem = {
                 id: Date.now().toString(),
@@ -88,13 +116,17 @@ export default function DesignerPage() {
                 template: selectedTemplate,
                 size: selectedSize,
                 gradient,
+                imageUrl: data.url || data.imageUrl || undefined,
                 timestamp: Date.now(),
             };
             setDesigns(prev => [newDesign, ...prev]);
+            saveCreation({ title: prompt.trim(), content: data.url || '', metadata: { model: selectedModel, template: selectedTemplate, size: selectedSize, gradient, imageUrl: data.url || '' } });
+        } catch (err) {
+            console.error('[Designer] Error:', err);
+            toast('Failed to generate design. Please try again.', 'error');
+        } finally {
             setIsGenerating(false);
-            // Save to server
-            saveCreation({ title: prompt.trim(), metadata: { model: selectedModel, template: selectedTemplate, size: selectedSize, gradient } });
-        }, 2500 + Math.random() * 1500);
+        }
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -215,12 +247,16 @@ export default function DesignerPage() {
                         )}
                         {designs.map(d => (
                             <div key={d.id} className="designer-canvas__item">
-                                <div className="designer-canvas__item-preview" style={{ background: d.gradient }}>
-                                    {TEMPLATES.find(t => t.id === d.template)?.icon}
+                                <div className="designer-canvas__item-preview" style={{ background: d.imageUrl ? 'transparent' : d.gradient }}>
+                                    {d.imageUrl ? (
+                                        <img src={d.imageUrl} alt={d.prompt} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} />
+                                    ) : (
+                                        TEMPLATES.find(t => t.id === d.template)?.icon
+                                    )}
                                     <button
                                         className="designer-canvas__download-btn"
                                         style={{ position: 'absolute', bottom: 8, right: 8, background: 'rgba(0,0,0,0.6)', border: 'none', color: '#fff', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 4 }}
-                                        onClick={() => { const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#${Math.floor(Math.random() * 16777215).toString(16)};stop-opacity:1" /><stop offset="100%" style="stop-color:#${Math.floor(Math.random() * 16777215).toString(16)};stop-opacity:1" /></linearGradient></defs><rect width="800" height="600" fill="url(#g)" rx="16"/><text x="400" y="280" text-anchor="middle" fill="white" font-size="24" font-family="sans-serif">${d.prompt}</text><text x="400" y="320" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-size="14" font-family="sans-serif">${d.size} · ${DESIGN_MODELS.find(m => m.id === d.model)?.name || ''}</text></svg>`; const blob = new Blob([svg], { type: 'image/svg+xml' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `design-${d.id}.svg`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); }}
+                                        onClick={() => { if (d.imageUrl) { const a = document.createElement('a'); a.href = d.imageUrl; a.download = `design-${d.id}.png`; a.target = '_blank'; document.body.appendChild(a); a.click(); document.body.removeChild(a); } }}
                                     >
                                         ⬇ Download
                                     </button>

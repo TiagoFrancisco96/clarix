@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fal } from '@fal-ai/client';
+import { auth } from '@/lib/auth';
+import { headers } from 'next/headers';
+import { checkCredits, creditDeniedResponse, getBalance } from '@/lib/creditGuard';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rateLimit';
 
 /* ── Display names for notification/fallback logs ── */
 const MODEL_DISPLAY_NAMES: Record<string, string> = {
@@ -84,6 +88,14 @@ async function generateKlingFallback(
 
 export async function POST(request: NextRequest) {
     try {
+        /* ── Auth Check ── */
+        const headersList = await headers();
+        const session = await auth.api.getSession({ headers: headersList });
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+        const userId = session.user.id;
+
         const body = await request.json();
         const { prompt, model, duration, aspectRatio, style } = body;
 
@@ -103,6 +115,27 @@ export async function POST(request: NextRequest) {
                 requestId: 'dryrun-request-id',
                 dryRun: true
             });
+        }
+
+        /* ── Rate Limiting ── */
+        const userCredits = await getBalance(userId);
+        const rateCheck = checkRateLimit(userId, userCredits.plan, 'video');
+        if (!rateCheck.allowed) {
+            return new NextResponse(JSON.stringify({
+                error: 'Too many requests',
+                retryAfterSeconds: Math.ceil((rateCheck.retryAfterMs || 60000) / 1000),
+            }), { status: 429, headers: { 'Content-Type': 'application/json' } });
+        }
+
+        /* ── Credit Check ── */
+        const creditCheck = await checkCredits(userId, 'video', model);
+        if (!creditCheck.allowed) {
+            return NextResponse.json({
+                error: 'Insufficient credits',
+                balance: creditCheck.balance,
+                cost: creditCheck.cost,
+                upgrade_url: '/settings?tab=subscription',
+            }, { status: 402 });
         }
 
         const modelConfig = FAL_MODEL_MAP[model];

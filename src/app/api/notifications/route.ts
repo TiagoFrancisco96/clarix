@@ -18,7 +18,8 @@ async function getUser() {
 }
 
 /* ── Welcome notifications for new users ── */
-function createWelcomeNotifications(userId: string) {
+/* ── Welcome notifications for new users ── */
+async function createWelcomeNotifications(userId: string) {
     const welcome = [
         {
             type: 'system',
@@ -47,8 +48,7 @@ function createWelcomeNotifications(userId: string) {
     ];
 
     for (const n of welcome) {
-        insertNotification({
-            id: randomUUID(),
+        await insertNotification({
             user_id: userId,
             type: n.type,
             title: n.title,
@@ -66,8 +66,9 @@ export async function GET(request: NextRequest) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     // Auto-create welcome notifications for first-time users
-    if (!hasWelcomeNotification(user.id)) {
-        createWelcomeNotifications(user.id);
+    const hasWelcome = await hasWelcomeNotification(user.id);
+    if (!hasWelcome) {
+        await createWelcomeNotifications(user.id);
     }
 
     const sp = request.nextUrl.searchParams;
@@ -75,8 +76,8 @@ export async function GET(request: NextRequest) {
     const unreadOnly = sp.get('unread') === '1';
     const showArchived = sp.get('archived') === '1';
 
-    const notifications = listNotifications(user.id, { type, unreadOnly, showArchived });
-    const unreadCount = getUnreadNotificationCount(user.id);
+    const notifications = await listNotifications(user.id, { type, unreadOnly, showArchived });
+    const unreadCount = await getUnreadNotificationCount(user.id);
 
     return NextResponse.json({ notifications, unreadCount });
 }
@@ -91,8 +92,7 @@ export async function POST(request: NextRequest) {
 
     if (!title) return NextResponse.json({ error: 'Missing title' }, { status: 400 });
 
-    insertNotification({
-        id: randomUUID(),
+    await insertNotification({
         user_id: user.id,
         type: type || 'activity',
         title,
@@ -114,27 +114,18 @@ export async function PATCH(request: NextRequest) {
     const { notificationId, action } = body;
 
     if (action === 'mark_all_read') {
-        markAllNotificationsRead(user.id);
+        await markAllNotificationsRead(user.id);
         return NextResponse.json({ success: true });
     }
 
     if (!notificationId) return NextResponse.json({ error: 'Missing notificationId' }, { status: 400 });
 
-    switch (action) {
-        case 'read':
-            updateNotification(notificationId, user.id, { is_read: 1 });
-            break;
-        case 'unread':
-            updateNotification(notificationId, user.id, { is_read: 0 });
-            break;
-        case 'archive':
-            updateNotification(notificationId, user.id, { is_archived: 1 });
-            break;
-        case 'restore':
-            updateNotification(notificationId, user.id, { is_archived: 0 });
-            break;
-        default:
-            return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });
+    if (action === 'read') {
+        await updateNotification(notificationId, user.id, 'read');
+    } else if (action === 'archive') {
+        await updateNotification(notificationId, user.id, 'archive');
+    } else {
+        return NextResponse.json({ error: `Unknown action or unsupported: ${action}` }, { status: 400 });
     }
 
     return NextResponse.json({ success: true });

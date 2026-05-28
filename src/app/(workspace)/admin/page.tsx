@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useQuery, useAction } from 'convex/react';
+import { api } from '../../../../convex/_generated/api';
 import './admin.css';
 
 /* ── Types ── */
@@ -43,7 +45,8 @@ interface HealthData {
     features: FeatureCheck[];
 }
 
-type Tab = 'overview' | 'services' | 'env' | 'database' | 'features' | 'flows';
+type Tab = 'overview' | 'services' | 'env' | 'database' | 'features' | 'flows' | 'e2e';
+
 
 /* ── Flow Test Types ── */
 interface TestStep {
@@ -68,6 +71,57 @@ export default function AdminPage() {
     const [activeTab, setActiveTab] = useState<Tab>('overview');
     const [flows, setFlows] = useState<TestFlow[]>(getInitialFlows());
     const [runningFlow, setRunningFlow] = useState<string | null>(null);
+
+    /* ── Convex Hooks ── */
+    const recentErrors = useQuery(api.errorTracking.getRecentErrors, { limit: 30 });
+    const errorStats = useQuery(api.errorTracking.getErrorStats);
+    const triggerE2EAuditAction = useAction(api.aiDiagnostics.triggerE2EAudit);
+
+    /* ── E2E Click Audit State ── */
+    const [targetUrl, setTargetUrl] = useState('https://clarix.ai');
+    const [dispatchStatus, setDispatchStatus] = useState<'pending' | 'running' | 'success' | 'error'>('pending');
+    const [dispatchMessage, setDispatchMessage] = useState('');
+    const [isGuideOpen, setIsGuideOpen] = useState(false);
+    const [expandedMeta, setExpandedMeta] = useState<Record<string, boolean>>({});
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            setTargetUrl(window.location.origin);
+        }
+    }, []);
+
+    async function handleTriggerE2EAudit() {
+        if (dispatchStatus === 'running') return;
+        setDispatchStatus('running');
+        setDispatchMessage('Initializing GitHub Actions virtual machine dispatcher bridge...');
+        
+        try {
+            // Convex handles current user session identity verification automatically in token headers
+            const result = await triggerE2EAuditAction({ siteUrl: targetUrl });
+            if (result.success) {
+                setDispatchStatus('success');
+                setDispatchMessage(result.message || 'Successfully dispatched Playwright E2E clicks audit on GitHub Actions.');
+            } else {
+                setDispatchStatus('error');
+                setDispatchMessage(result.error || 'Failed to dispatch workflow dispatch request.');
+            }
+        } catch (err) {
+            setDispatchStatus('error');
+            setDispatchMessage((err as Error).message);
+        }
+    }
+
+    const toggleMeta = (id: string) => {
+        setExpandedMeta(prev => ({ ...prev, [id]: !prev[id] }));
+    };
+
+    const formatMetadata = (raw: string): string => {
+        try {
+            return JSON.stringify(JSON.parse(raw), null, 2);
+        } catch {
+            return raw; // Return raw string if JSON is malformed
+        }
+    };
 
     const fetchHealth = useCallback(async () => {
         setLoading(true);
@@ -230,6 +284,48 @@ export default function AdminPage() {
                 if (!res.ok) throw new Error(`Video API returned ${res.status}`);
                 return;
             }
+            case 'chat-gen-ping': {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        messages: [{ role: 'user', content: 'dryRun' }],
+                        model: 'auto',
+                    }),
+                });
+                if (!res.ok) throw new Error(`Chat API returned ${res.status}`);
+                if (!res.body) throw new Error('Chat API returned no stream body');
+
+                // Read and validate the SSE stream
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let sseText = '';
+                let metaSeen = false;
+                let chunkSeen = false;
+                let doneSeen = false;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    sseText += decoder.decode(value, { stream: true });
+                }
+
+                for (const line of sseText.split('\n')) {
+                    const trimmed = line.trim();
+                    if (!trimmed.startsWith('data: ')) continue;
+                    try {
+                        const event = JSON.parse(trimmed.slice(6));
+                        if (event.type === 'meta') metaSeen = true;
+                        if (event.type === 'chunk') chunkSeen = true;
+                        if (event.type === 'done') doneSeen = true;
+                    } catch { /* skip */ }
+                }
+
+                if (!metaSeen) throw new Error('SSE stream missing meta event');
+                if (!chunkSeen) throw new Error('SSE stream missing chunk event');
+                if (!doneSeen) throw new Error('SSE stream missing done event');
+                return;
+            }
             case 'creation-save-db': {
                 const res = await fetch('/api/creations', {
                     method: 'POST',
@@ -313,7 +409,9 @@ export default function AdminPage() {
         { id: 'database', label: 'Database', count: dbOk },
         { id: 'features', label: 'Features', count: data?.features.length },
         { id: 'flows', label: 'Flow Tester' },
+        { id: 'e2e', label: 'E2E Clicks Audit' },
     ];
+
 
     return (
         <div className="admin">
@@ -628,6 +726,195 @@ export default function AdminPage() {
                             ))}
                         </div>
                     )}
+
+                    {/* ── E2E Clicks Audit Tab ── */}
+                    {activeTab === 'e2e' && (
+                        <div className="admin__e2e-container">
+                            <div className="admin__section-header">
+                                <h2 className="admin__section-title">
+                                    🌐 On-Demand Playwright E2E Clicks Audit
+                                </h2>
+                            </div>
+
+                            {/* Dispatch Card */}
+                            <div className="admin__e2e-card">
+                                <div style={{ fontSize: '0.92rem', color: 'var(--text-secondary)', marginBottom: 'var(--space-4)' }}>
+                                    Launch on-demand automated headless browser click runs on a GitHub Actions serverless virtual machine to test and verify every button, function, and workspace route.
+                                </div>
+                                <div className="admin__e2e-control-panel">
+                                    <div className="admin__e2e-input-wrapper">
+                                        <input
+                                            type="text"
+                                            className="admin__e2e-input"
+                                            value={targetUrl}
+                                            onChange={(e) => setTargetUrl(e.target.value)}
+                                            placeholder="Target Site URL (e.g. https://clarix.ai)"
+                                            disabled={dispatchStatus === 'running'}
+                                        />
+                                    </div>
+                                    <button
+                                        className="admin__e2e-trigger-btn"
+                                        onClick={handleTriggerE2EAudit}
+                                        disabled={dispatchStatus === 'running' || !targetUrl}
+                                    >
+                                        {dispatchStatus === 'running' ? (
+                                            <>
+                                                <svg className="admin__refresh-btn loading" style={{ width: '14px', height: '14px', marginRight: '6px', animation: 'spin 1s linear infinite' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                                    <polyline points="23 4 23 10 17 10" />
+                                                    <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10" />
+                                                </svg>
+                                                Running...
+                                            </>
+                                        ) : (
+                                            <>⚡ Run Playwright Clicks</>
+                                        )}
+                                    </button>
+                                </div>
+
+                                {dispatchStatus !== 'pending' && (
+                                    <div style={{ marginTop: 'var(--space-4)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <div className={`admin__e2e-indicator-dot admin__e2e-indicator-dot--${dispatchStatus}`} />
+                                        <span style={{
+                                            fontSize: '0.82rem',
+                                            fontWeight: '600',
+                                            color: dispatchStatus === 'success' ? 'var(--accent-green)' : dispatchStatus === 'error' ? 'var(--accent-red)' : 'var(--accent-gold)'
+                                        }}>
+                                            {dispatchMessage}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Config Instructions Accordion */}
+                            <div className="admin__e2e-guide-section">
+                                <div className="admin__e2e-guide-header" onClick={() => setIsGuideOpen(!isGuideOpen)}>
+                                    <span>⚙️ E2E Click Audit Setup Instructions & Credentials</span>
+                                    <span>{isGuideOpen ? '▲ Hide' : '▼ Expand Guide'}</span>
+                                </div>
+                                {isGuideOpen && (
+                                    <div className="admin__e2e-guide-body">
+                                        <div className="admin__e2e-guide-steps">
+                                            <div>
+                                                <strong>1. Generate a Fine-Grained GitHub Personal Access Token (PAT):</strong>
+                                                <div style={{ marginTop: '4px' }}>
+                                                    Go to GitHub Settings → Developer Settings → Personal Access Tokens → Fine-Grained Tokens. Select your repository and grant <strong>Read and Write</strong> access to <strong>Actions</strong> and <strong>Workflows</strong> permissions.
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <strong>2. Save Credentials Securely in Convex Dashboard Settings:</strong>
+                                                <div style={{ marginTop: '4px' }}>
+                                                    Open your Convex project dashboard, click on Settings → Environment Variables, and add the following variables:
+                                                </div>
+                                                <div className="admin__e2e-guide-step-code">
+                                                    GITHUB_PAT=github_pat_... (Your Fine-Grained Personal Access Token)<br />
+                                                    GITHUB_OWNER=your-username-or-org<br />
+                                                    GITHUB_REPO=your-repository-name
+                                                </div>
+                                            </div>
+                                            <div style={{ borderLeft: '3px solid var(--accent-gold)', paddingLeft: '12px', fontStyle: 'italic', fontSize: '0.78rem' }}>
+                                                Note: Once configured, audits can run twice a day automatically on schedule, or manual triggers from this health dashboard will bootstrap VM runners immediately.
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Persistent Telemetry Error Console */}
+                            <div className="admin__section" style={{ marginTop: 'var(--space-4)' }}>
+                                <div className="admin__section-header">
+                                    <h2 className="admin__section-title">
+                                        🛡️ Persistent SRE Error Logs & Live Telemetry Feed
+                                        {errorStats && (
+                                            <span className="admin__section-badge" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#f87171' }}>
+                                                {errorStats.total} logged incidents
+                                            </span>
+                                        )}
+                                    </h2>
+                                </div>
+
+                                {/* Summary Sub-grid */}
+                                {errorStats && errorStats.total > 0 && (
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
+                                        <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)', borderRadius: '6px', padding: '10px', textAlign: 'center' }}>
+                                            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#f87171' }}>{errorStats.severity.critical}</div>
+                                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Critical</div>
+                                        </div>
+                                        <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)', borderRadius: '6px', padding: '10px', textAlign: 'center' }}>
+                                            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fb923c' }}>{errorStats.severity.high}</div>
+                                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>High Risk</div>
+                                        </div>
+                                        <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)', borderRadius: '6px', padding: '10px', textAlign: 'center' }}>
+                                            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fbbf24' }}>{errorStats.severity.medium}</div>
+                                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Medium</div>
+                                        </div>
+                                        <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)', borderRadius: '6px', padding: '10px', textAlign: 'center' }}>
+                                            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-secondary)' }}>{errorStats.component.e2e}</div>
+                                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>E2E Audits</div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="admin__sre-feed">
+                                    {!recentErrors ? (
+                                        <div style={{ display: 'flex', justifyContent: 'center', padding: '24px' }}>
+                                            <div className="admin__refresh-btn loading" style={{ border: 'none', background: 'transparent' }}>
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                                                Loading telemetry...
+                                            </div>
+                                        </div>
+                                    ) : recentErrors.length === 0 ? (
+                                        <div style={{ background: 'var(--bg-surface)', border: '1px dashed var(--border-subtle)', padding: '36px', borderRadius: 'var(--radius-md)', textAlign: 'center', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                            🔒 Workspace Telemetry Log is clean. Zero incidents recorded.
+                                        </div>
+                                    ) : (
+                                        recentErrors.map((err) => (
+                                            <div key={err._id} className={`admin__sre-item admin__sre-item--${err.severity}`}>
+                                                <div className="admin__sre-header">
+                                                    <span className={`admin__sre-badge admin__sre-badge--${err.severity}`}>
+                                                        {err.severity}
+                                                    </span>
+                                                    <span className="admin__sre-time">
+                                                        🗓️ {new Date(err.timestamp).toLocaleString()}
+                                                    </span>
+                                                </div>
+                                                <div className="admin__sre-message">{err.message}</div>
+                                                <div className="admin__sre-details">
+                                                    <div className="admin__sre-details-item">
+                                                        Component: <span>{err.component.toUpperCase()}</span>
+                                                    </div>
+                                                    {err.user_id && (
+                                                        <div className="admin__sre-details-item">
+                                                            User Context: <span>{err.user_id}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                {err.stack && (
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                        <button className="admin__sre-meta-btn" onClick={() => toggleMeta(err._id)}>
+                                                            {expandedMeta[err._id] ? '▼ Hide Trace Log' : '▶ Show Trace Log'}
+                                                        </button>
+                                                        {expandedMeta[err._id] && (
+                                                            <pre className="admin__sre-meta-body">{err.stack}</pre>
+                                                        )}
+                                                    </div>
+                                                )}
+                                                {err.metadata && (
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                        <button className="admin__sre-meta-btn" onClick={() => toggleMeta(`${err._id}-meta`)}>
+                                                            {expandedMeta[`${err._id}-meta`] ? '▼ Hide Metadata JSON' : '▶ Show Metadata JSON'}
+                                                        </button>
+                                                        {expandedMeta[`${err._id}-meta`] && (
+                                                            <pre className="admin__sre-meta-body">{formatMetadata(err.metadata)}</pre>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </>
             )}
         </div>
@@ -725,6 +1012,7 @@ function getInitialFlows(): TestFlow[] {
                 { id: 'image-gen-ping', name: 'Test Image API dry POST', status: 'pending' },
                 { id: 'music-gen-ping', name: 'Test Music API dry POST', status: 'pending' },
                 { id: 'video-gen-ping', name: 'Test Video API dry POST', status: 'pending' },
+                { id: 'chat-gen-ping', name: 'Test Chat API streaming dry POST', status: 'pending' },
                 { id: 'creation-save-db', name: 'Write and register Doc creation to SQL Database', status: 'pending' },
             ],
         },

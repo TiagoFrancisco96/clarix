@@ -28,8 +28,7 @@ interface DbCheck {
 /* ── Helpers ── */
 function mask(val: string | undefined): string {
     if (!val) return '(not set)';
-    if (val.length <= 8) return '••••••••';
-    return val.slice(0, 4) + '••••' + val.slice(-4);
+    return '••••••••';
 }
 
 async function checkEndpoint(url: string, opts?: {
@@ -188,32 +187,18 @@ async function checkDatabase(): Promise<DbCheck[]> {
     const checks: DbCheck[] = [];
 
     try {
-        // Dynamic import to avoid bundling issues
-        const Database = (await import('better-sqlite3')).default;
-        const path = await import('path');
-        const dbPath = path.resolve(process.cwd(), './auth.db');
-        const db = new Database(dbPath, { readonly: true });
+        const { ConvexHttpClient } = await import("convex/browser");
+        const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+        if (!convexUrl) throw new Error("Missing NEXT_PUBLIC_CONVEX_URL");
+        
+        const r = await fetch(convexUrl + "/version");
+        if (!r.ok) throw new Error("Convex ping failed");
 
-        // Check each table
-        const tables = ['user', 'session', 'account', 'verification', 'drive_files', 'notifications', 'user_creations'];
-        for (const table of tables) {
-            try {
-                const row = db.prepare(`SELECT COUNT(*) as count FROM ${table}`).get() as { count: number } | undefined;
-                checks.push({
-                    name: table,
-                    status: 'ok',
-                    rowCount: row?.count ?? 0,
-                });
-            } catch {
-                checks.push({
-                    name: table,
-                    status: 'error',
-                    message: 'Table not found',
-                });
-            }
-        }
-
-        db.close();
+        checks.push({
+            name: 'Convex Database',
+            status: 'ok',
+            rowCount: 1,
+        });
     } catch (e) {
         checks.push({
             name: 'database',

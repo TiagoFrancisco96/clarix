@@ -142,27 +142,27 @@ async function checkStripe(): Promise<ServiceCheck> {
 
 async function checkDatabase(): Promise<ServiceCheck> {
     try {
-        const DatabaseClass = (await import('better-sqlite3')).default;
-        const path = await import('path');
-        const dbPath = path.resolve(process.cwd(), './auth.db');
-        const db = new DatabaseClass(dbPath, { readonly: true });
+        const { ConvexHttpClient } = await import("convex/browser");
+        const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+        if (!convexUrl) throw new Error("Missing NEXT_PUBLIC_CONVEX_URL");
         
-        // Lightweight query
-        db.prepare("SELECT 1").get();
-        db.close();
+        const client = new ConvexHttpClient(convexUrl);
+        // Do a basic network ping
+        const r = await fetch(convexUrl + "/version");
+        if (!r.ok) throw new Error("Convex ping failed");
         
         return {
             name: 'Database',
-            provider: 'SQLite Local Storage',
+            provider: 'Convex Serverless DB',
             status: 'ok',
             message: 'Operational',
         };
     } catch (e) {
         return {
             name: 'Database',
-            provider: 'SQLite Local Storage',
+            provider: 'Convex Serverless DB',
             status: 'error',
-            message: (e as Error).message,
+            message: 'Connection Failed',
         };
     }
 }

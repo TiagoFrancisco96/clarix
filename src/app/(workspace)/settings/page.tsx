@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useToast } from '@/components/Toast';
 import './settings.css';
 
 /* ── Types ── */
@@ -58,6 +59,62 @@ export default function SettingsPage() {
     soundEffects: true,
   });
 
+  /* ── Live credit data ── */
+  const [creditData, setCreditData] = useState<{
+    balance: number; lifetime_used: number; plan: string;
+    plan_credits: number; reset_at: number;
+  } | null>(null);
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('/api/credits').then(r => r.ok ? r.json() : null).then(d => d && setCreditData(d)).catch(() => {});
+  }, []);
+
+  const usageData = {
+    creditsUsed: creditData ? creditData.lifetime_used : 0,
+    creditsTotal: creditData ? creditData.plan_credits : 200,
+    creditsBalance: creditData ? creditData.balance : 200,
+    plan: creditData?.plan || 'free',
+    storageUsed: 12.4,
+    storageTotal: creditData?.plan === 'pro' ? 100 : creditData?.plan === 'plus' ? 50 : 1,
+    topModels: [
+      { name: 'DeepSeek V4-Flash', pct: 38 },
+      { name: 'Claude Sonnet 4.6', pct: 28 },
+      { name: 'GPT-5.5', pct: 18 },
+      { name: 'Other', pct: 16 },
+    ],
+  };
+
+  const { toast } = useToast();
+
+  /* ── Stripe checkout handler ── */
+  const handleCheckout = async (type: 'plan' | 'credits', id: string) => {
+    setCheckoutLoading(id);
+    try {
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(
+          type === 'plan'
+            ? { type: 'plan', planId: id }
+            : { type: 'credits', packId: id }
+        ),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else if (data.coming_soon) {
+        toast('Payments are coming soon! Stripe is not configured yet.', 'info');
+      } else {
+        toast(data.error || 'Checkout failed', 'error');
+      }
+    } catch {
+      toast('Something went wrong. Please try again.', 'error');
+    } finally {
+      setCheckoutLoading(null);
+    }
+  };
+
   const toggleNotification = (key: keyof typeof notifications) => {
     setNotifications(prev => ({ ...prev, [key]: !prev[key] }));
   };
@@ -66,20 +123,6 @@ export default function SettingsPage() {
     setApiKeys(prev => prev.map(k =>
       k.id === id ? { ...k, isSet: true, masked: 'sk-••••••••••••••••' } : k
     ));
-  };
-
-  /* ── Usage data (simulated) ── */
-  const usageData = {
-    creditsUsed: 4_280,
-    creditsTotal: 12_000,
-    storageUsed: 12.4,
-    storageTotal: 50,
-    topModels: [
-      { name: 'DeepSeek V4-Flash', pct: 38 },
-      { name: 'Claude Sonnet 4.6', pct: 28 },
-      { name: 'GPT-5.5', pct: 18 },
-      { name: 'Other', pct: 16 },
-    ],
   };
 
   return (
@@ -120,7 +163,7 @@ export default function SettingsPage() {
                   <input className="settings__input" type="email" placeholder="your@email.com" value={email} onChange={e => setEmail(e.target.value)} />
                 </div>
               </div>
-              <button className="settings__save-btn" onClick={() => alert('Profile settings saved!')}>Save Changes</button>
+              <button className="settings__save-btn" onClick={() => toast('Profile settings saved!', 'success')}>Save Changes</button>
             </div>
 
             {/* Theme */}
@@ -148,11 +191,11 @@ export default function SettingsPage() {
               <div className="settings__usage-bars">
                 <div className="settings__usage-item">
                   <div className="settings__usage-header">
-                    <span>Credits</span>
-                    <span className="settings__usage-value">{usageData.creditsUsed.toLocaleString()} / {usageData.creditsTotal.toLocaleString()}</span>
+                    <span>Credits Remaining</span>
+                    <span className="settings__usage-value">{usageData.creditsBalance.toLocaleString()} / {usageData.creditsTotal.toLocaleString()}</span>
                   </div>
                   <div className="settings__usage-track">
-                    <div className="settings__usage-fill" style={{ width: `${(usageData.creditsUsed / usageData.creditsTotal) * 100}%` }} />
+                    <div className="settings__usage-fill" style={{ width: `${Math.min(100, (usageData.creditsBalance / usageData.creditsTotal) * 100)}%` }} />
                   </div>
                 </div>
                 <div className="settings__usage-item">
@@ -266,8 +309,8 @@ export default function SettingsPage() {
             <div className="settings__card">
               <h2 className="settings__card-title">Current Plan</h2>
               <div className="settings__plan-current">
-                <span className="settings__plan-badge">Free</span>
-                <span className="settings__plan-info">200 credits / month · 1 GB storage</span>
+                <span className="settings__plan-badge">{usageData.plan === 'free' ? 'Free' : usageData.plan.charAt(0).toUpperCase() + usageData.plan.slice(1)}</span>
+                <span className="settings__plan-info">{usageData.creditsBalance.toLocaleString()} credits remaining · {usageData.creditsTotal.toLocaleString()}/month</span>
               </div>
 
               <div className="settings__plans">
@@ -281,7 +324,7 @@ export default function SettingsPage() {
                     <li>Priority generation queue</li>
                     <li>Custom agents (up to 10)</li>
                   </ul>
-                  <button className="settings__upgrade-btn" onClick={() => alert('Redirecting to checkout for Plus plan...')}>Upgrade to Plus</button>
+                  <button className="settings__upgrade-btn" disabled={checkoutLoading === 'plus'} onClick={() => handleCheckout('plan', 'plus')}>{checkoutLoading === 'plus' ? 'Redirecting...' : 'Upgrade to Plus'}</button>
                 </div>
                 <div className="settings__plan settings__plan--pro">
                   <div className="settings__plan-popular">Most Popular</div>
@@ -294,7 +337,7 @@ export default function SettingsPage() {
                     <li>Custom agents (unlimited)</li>
                     <li>API access & webhooks</li>
                   </ul>
-                  <button className="settings__upgrade-btn settings__upgrade-btn--pro" onClick={() => alert('Redirecting to checkout for Pro plan...')}>Upgrade to Pro</button>
+                  <button className="settings__upgrade-btn settings__upgrade-btn--pro" disabled={checkoutLoading === 'pro'} onClick={() => handleCheckout('plan', 'pro')}>{checkoutLoading === 'pro' ? 'Redirecting...' : 'Upgrade to Pro'}</button>
                 </div>
                 <div className="settings__plan">
                   <div className="settings__plan-name">Enterprise</div>
@@ -306,7 +349,7 @@ export default function SettingsPage() {
                     <li>Dedicated support & SLA</li>
                     <li>Team collaboration</li>
                   </ul>
-                  <button className="settings__upgrade-btn" onClick={() => alert('Opening contact form for Enterprise sales...')}>Contact Sales</button>
+                  <button className="settings__upgrade-btn" disabled={checkoutLoading === 'enterprise'} onClick={() => handleCheckout('plan', 'enterprise')}>{checkoutLoading === 'enterprise' ? 'Redirecting...' : 'Contact Sales'}</button>
                 </div>
               </div>
             </div>
@@ -317,23 +360,23 @@ export default function SettingsPage() {
                 Need more credits? Purchase a pack anytime. Credits never expire and stack on top of your plan.
               </p>
               <div className="settings__credit-packs">
-                <button className="settings__credit-pack" onClick={() => alert('Purchasing 2,500 credits for $5...')}>
+                <button className="settings__credit-pack" disabled={checkoutLoading === 'pack-2500'} onClick={() => handleCheckout('credits', 'pack-2500')}>
                   <span className="settings__credit-pack-amount">2,500 credits</span>
                   <span className="settings__credit-pack-price">$5</span>
                   <span className="settings__credit-pack-rate">$0.002/credit</span>
                 </button>
-                <button className="settings__credit-pack" onClick={() => alert('Purchasing 10,000 credits for $15...')}>
+                <button className="settings__credit-pack" disabled={checkoutLoading === 'pack-10000'} onClick={() => handleCheckout('credits', 'pack-10000')}>
                   <span className="settings__credit-pack-amount">10,000 credits</span>
                   <span className="settings__credit-pack-price">$15</span>
                   <span className="settings__credit-pack-rate">$0.0015/credit · Save 25%</span>
                 </button>
-                <button className="settings__credit-pack settings__credit-pack--popular" onClick={() => alert('Purchasing 50,000 credits for $59...')}>
+                <button className="settings__credit-pack settings__credit-pack--popular" disabled={checkoutLoading === 'pack-50000'} onClick={() => handleCheckout('credits', 'pack-50000')}>
                   <span className="settings__credit-pack-badge">Best Value</span>
                   <span className="settings__credit-pack-amount">50,000 credits</span>
                   <span className="settings__credit-pack-price">$59</span>
                   <span className="settings__credit-pack-rate">$0.00118/credit · Save 41%</span>
                 </button>
-                <button className="settings__credit-pack" onClick={() => alert('Purchasing 100,000 credits for $99...')}>
+                <button className="settings__credit-pack" disabled={checkoutLoading === 'pack-100000'} onClick={() => handleCheckout('credits', 'pack-100000')}>
                   <span className="settings__credit-pack-amount">100,000 credits</span>
                   <span className="settings__credit-pack-price">$99</span>
                   <span className="settings__credit-pack-rate">$0.00099/credit · Save 50%</span>
@@ -354,21 +397,21 @@ export default function SettingsPage() {
                     <span className="settings__data-action-label">📦 Export All Data</span>
                     <span className="settings__data-action-desc">Download all your chats, documents, images, and settings as a ZIP file.</span>
                   </div>
-                  <button className="settings__save-btn" onClick={() => alert('Preparing data export... This may take a few minutes.')}>Export</button>
+                  <button className="settings__save-btn" onClick={() => toast('Preparing data export... This may take a few minutes.', 'info')}>Export</button>
                 </div>
                 <div className="settings__data-action">
                   <div className="settings__data-action-info">
                     <span className="settings__data-action-label">🗑️ Clear Chat History</span>
                     <span className="settings__data-action-desc">Permanently delete all conversation history. This cannot be undone.</span>
                   </div>
-                  <button className="settings__danger-btn" onClick={() => { if (confirm('Are you sure you want to clear all chat history? This cannot be undone.')) alert('Chat history cleared.'); }}>Clear</button>
+                  <button className="settings__danger-btn" onClick={() => { if (confirm('Are you sure you want to clear all chat history? This cannot be undone.')) toast('Chat history cleared.', 'success'); }}>Clear</button>
                 </div>
                 <div className="settings__data-action">
                   <div className="settings__data-action-info">
                     <span className="settings__data-action-label">⚠️ Delete Account</span>
                     <span className="settings__data-action-desc">Permanently delete your account and all associated data.</span>
                   </div>
-                  <button className="settings__danger-btn" onClick={() => { if (confirm('Are you sure you want to delete your account? This action is permanent and cannot be undone.')) alert('Account deletion requested. You will receive a confirmation email.'); }}>Delete Account</button>
+                  <button className="settings__danger-btn" onClick={() => { if (confirm('Are you sure you want to delete your account? This action is permanent and cannot be undone.')) toast('Account deletion requested. You will receive a confirmation email.', 'info'); }}>Delete Account</button>
                 </div>
               </div>
             </div>

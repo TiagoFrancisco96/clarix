@@ -695,3 +695,263 @@
         align-items: flex-start;
     }
 }
+
+/* ── E2E Click Audit Premium Tab ── */
+.admin__e2e-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+}
+
+.admin__e2e-card {
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-lg);
+    padding: var(--space-6);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05);
+    transition: all var(--transition-base);
+}
+
+.admin__e2e-card:hover {
+    border-color: rgba(212, 168, 67, 0.2);
+    box-shadow: 0 12px 36px rgba(0,0,0,0.6), 0 0 40px rgba(212, 168, 67, 0.02) inset;
+}
+
+.admin__e2e-control-panel {
+    display: flex;
+    gap: var(--space-4);
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.admin__e2e-input-wrapper {
+    flex: 1;
+    min-width: 280px;
+    position: relative;
+}
+
+.admin__e2e-input {
+    width: 100%;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-4);
+    font-size: 0.88rem;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    outline: none;
+    transition: all var(--transition-fast);
+}
+
+.admin__e2e-input:focus {
+    border-color: var(--accent-gold);
+    box-shadow: 0 0 12px rgba(212, 168, 67, 0.15);
+    background: rgba(15, 23, 42, 0.8);
+}
+
+.admin__e2e-trigger-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-6);
+    border-radius: var(--radius-md);
+    background: linear-gradient(135deg, var(--accent-gold), #c4956a);
+    color: var(--bg-base);
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border: none;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    box-shadow: var(--shadow-sm);
+}
+
+.admin__e2e-trigger-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 0 20px rgba(212, 168, 67, 0.4);
+}
+
+.admin__e2e-trigger-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.admin__e2e-indicator {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.admin__e2e-indicator-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.admin__e2e-indicator-dot--pending { background: #94a3b8; }
+.admin__e2e-indicator-dot--running { background: var(--accent-gold); animation: pulse 1.5s infinite; }
+.admin__e2e-indicator-dot--success { background: var(--accent-green); box-shadow: 0 0 8px rgba(74, 222, 128, 0.4); }
+.admin__e2e-indicator-dot--error { background: var(--accent-red); box-shadow: 0 0 8px rgba(248, 113, 113, 0.4); }
+
+.admin__e2e-guide-section {
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--bg-surface);
+}
+
+.admin__e2e-guide-header {
+    padding: var(--space-4) var(--space-5);
+    background: var(--bg-elevated);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.88rem;
+}
+
+.admin__e2e-guide-header:hover {
+    background: var(--bg-hover);
+}
+
+.admin__e2e-guide-body {
+    padding: var(--space-5);
+    border-top: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    line-height: 1.6;
+}
+
+.admin__e2e-guide-steps {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.admin__e2e-guide-step-code {
+    background: var(--bg-input);
+    border: 1px solid var(--border-subtle);
+    padding: var(--space-3);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: #e2e8f0;
+    overflow-x: auto;
+    margin-top: var(--space-2);
+}
+
+/* ── SRE Telemetry Log Feed ── */
+.admin__sre-feed {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.admin__sre-item {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    transition: all var(--transition-fast);
+}
+
+.admin__sre-item:hover {
+    border-color: var(--border-medium);
+    background: var(--bg-elevated);
+}
+
+.admin__sre-item--critical { border-left: 4px solid var(--accent-red); }
+.admin__sre-item--high { border-left: 4px solid var(--accent-orange); }
+.admin__sre-item--medium { border-left: 4px solid var(--accent-gold); }
+.admin__sre-item--low { border-left: 4px solid var(--text-muted); }
+
+.admin__sre-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+.admin__sre-badge {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-xs);
+    font-family: var(--font-mono);
+}
+
+.admin__sre-badge--critical { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+.admin__sre-badge--high { background: rgba(249, 115, 22, 0.15); color: #fb923c; }
+.admin__sre-badge--medium { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+.admin__sre-badge--low { background: rgba(148, 163, 184, 0.15); color: #94a3b8; }
+
+.admin__sre-time {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+.admin__sre-message {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    word-break: break-word;
+}
+
+.admin__sre-details {
+    display: flex;
+    gap: var(--space-4);
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+}
+
+.admin__sre-details-item span {
+    font-family: var(--font-mono);
+    color: var(--text-secondary);
+}
+
+.admin__sre-meta-btn {
+    align-self: flex-start;
+    background: transparent;
+    border: none;
+    color: var(--accent-gold);
+    font-size: 0.72rem;
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.admin__sre-meta-btn:hover {
+    color: #e5b954;
+    text-decoration: underline;
+}
+
+.admin__sre-meta-body {
+    background: var(--bg-input);
+    border: 1px solid var(--border-subtle);
+    padding: var(--space-3);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 200px;
+    overflow-y: auto;
+}
+

@@ -41,10 +41,10 @@ export async function GET(request: NextRequest) {
     const sortBy = (sp.get('sort') as 'name' | 'size' | 'modified') || undefined;
     const showDeleted = sp.get('trash') === '1';
 
-    const files = listDriveFiles(user.id, { folder, search, sortBy, showDeleted });
-    const storageUsed = getDriveStorageUsed(user.id);
-    const folderCounts = getDriveFolderCounts(user.id);
-    const totalCount = Object.values(folderCounts).reduce((s, c) => s + c, 0);
+    const files = await listDriveFiles(user.id, { folder, search, sortBy, showDeleted });
+    const storageUsed = await getDriveStorageUsed(user.id);
+    const folderCounts = await getDriveFolderCounts(user.id);
+    const totalCount = Object.values(folderCounts).reduce((s: number, c: unknown) => s + (c as number), 0);
 
     return NextResponse.json({
         files,
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Storage limit: 1 GB for free tier
-    const currentUsage = getDriveStorageUsed(user.id);
+    const currentUsage = await getDriveStorageUsed(user.id);
     const limit = 1024 * 1024 * 1024; // 1 GB
     if (currentUsage + file.size > limit) {
         return NextResponse.json({ error: 'Storage limit exceeded. Upgrade for more space.' }, { status: 413 });
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
     fs.writeFileSync(diskPath, buffer);
 
     // Insert DB record
-    insertDriveFile({
+    await insertDriveFile({
         id: fileId,
         user_id: user.id,
         name: file.name,
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, fileId });
 }
 
-/* ── DELETE: Trash or permanent delete ── */
+/* ── DELETE: Trash or permanently delete ── */
 export async function DELETE(request: NextRequest) {
     const user = await getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -116,15 +116,14 @@ export async function DELETE(request: NextRequest) {
     if (!fileId) return NextResponse.json({ error: 'Missing fileId' }, { status: 400 });
 
     if (permanent) {
-        // TODO: also delete from disk
         const { permanentDeleteDriveFile, getDriveFile } = await import('@/lib/db');
-        const file = getDriveFile(fileId, user.id);
+        const file = await getDriveFile(fileId, user.id);
         if (file?.disk_path && fs.existsSync(file.disk_path)) {
             fs.unlinkSync(file.disk_path);
         }
-        permanentDeleteDriveFile(fileId, user.id);
+        await permanentDeleteDriveFile(fileId, user.id);
     } else {
-        updateDriveFile(fileId, user.id, { is_deleted: 1 });
+        await updateDriveFile(fileId, user.id, { is_deleted: 1 });
     }
 
     return NextResponse.json({ success: true });

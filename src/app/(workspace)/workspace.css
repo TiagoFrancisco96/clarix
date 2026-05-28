@@ -397,3 +397,65 @@
     background: rgba(239, 68, 68, 0.1);
     color: #f87171;
 }
+
+/* ---------- Low-Credit Warning Banner ---------- */
+.topbar__low-credit-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-6);
+    background: rgba(245, 158, 11, 0.08);
+    border-bottom: 1px solid rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+    font-size: 0.8rem;
+    animation: banner-slide-down 0.3s ease-out;
+}
+
+.topbar__low-credit-banner a {
+    color: #f59e0b;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: color 0.15s;
+}
+
+.topbar__low-credit-banner a:hover {
+    color: #fbbf24;
+    text-decoration: underline;
+}
+
+.topbar__low-credit-banner--empty {
+    background: rgba(239, 68, 68, 0.08);
+    border-bottom-color: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+.topbar__low-credit-banner--empty a {
+    color: #ef4444;
+}
+
+.topbar__low-credit-banner--empty a:hover {
+    color: #f87171;
+}
+
+@keyframes banner-slide-down {
+    from { opacity: 0; transform: translateY(-100%); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- Credit Loading Skeleton ---------- */
+.topbar__credits-skeleton {
+    display: inline-block;
+    width: 40px;
+    height: 14px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.04) 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}

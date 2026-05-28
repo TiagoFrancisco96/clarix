@@ -39,7 +39,7 @@ export default function PrivacyPage() {
                 <p>Your prompts and AI-generated content are encrypted end-to-end. We never use your content to train AI models. We are SOC 2 Type II compliant and undergo annual third-party security audits.</p>
 
                 <h2>4. Data Sharing</h2>
-                <p>We do not sell your personal information. We share data only with AI model providers (OpenAI, Anthropic, Google, etc.) as necessary to process your requests, and they are contractually prohibited from using this data for training.</p>
+                <p>We do not sell your personal information. We share data only with the AI companies that power your requests (OpenAI, Anthropic, Google, etc.), and they are contractually prohibited from using this data for training.</p>
 
                 <h2>5. Data Retention</h2>
                 <p>You can delete your account and all associated data at any time from your settings. Upon account deletion, all data is permanently removed within 30 days.</p>

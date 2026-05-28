@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { headers } from 'next/headers';
+import { checkCredits, creditDeniedResponse, getBalance, refundCredits } from '@/lib/creditGuard';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rateLimit';
 
 // Helper function to generate via Fal.ai (Flux)
 async function generateViaFal(prompt: string, model: string = 'fal-ai/flux/schnell') {
@@ -33,7 +37,17 @@ const MODEL_NAMES: Record<string, string> = {
 };
 
 export async function POST(req: NextRequest) {
+    let userId = '';
+    let creditCheck: { allowed: boolean; balance: number; cost: number; newBalance?: number } | null = null;
     try {
+        /* ── Auth Check ── */
+        const headersList = await headers();
+        const session = await auth.api.getSession({ headers: headersList });
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+        userId = session.user.id;
+
         const body = await req.json();
         const { prompt, model } = body;
 
@@ -43,6 +57,27 @@ export async function POST(req: NextRequest) {
 
         if (prompt === 'dryRun') {
             return NextResponse.json({ url: '/logo.png', dryRun: true });
+        }
+
+        /* ── Rate Limiting ── */
+        const userCredits = await getBalance(userId);
+        const rateCheck = checkRateLimit(userId, userCredits.plan, 'image');
+        if (!rateCheck.allowed) {
+            return new NextResponse(JSON.stringify({
+                error: 'Too many requests',
+                retryAfterSeconds: Math.ceil((rateCheck.retryAfterMs || 60000) / 1000),
+            }), { status: 429, headers: { 'Content-Type': 'application/json' } });
+        }
+
+        /* ── Credit Check ── */
+        creditCheck = await checkCredits(userId, 'image', model || 'flux-schnell');
+        if (!creditCheck.allowed) {
+            return NextResponse.json({
+                error: 'Insufficient credits',
+                balance: creditCheck.balance,
+                cost: creditCheck.cost,
+                upgrade_url: '/settings?tab=subscription',
+            }, { status: 402 });
         }
 
         let imageUrl = '';
@@ -183,6 +218,10 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ url: imageUrl, fallback });
     } catch (error) {
         console.error('[Image Generation API Error]', error);
+        // Refund credits on total failure
+        if (userId) {
+            await refundCredits(userId, creditCheck?.cost || 0, `image:internal_error`);
+        }
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }

@@ -27,7 +27,7 @@ export default function TermsPage() {
                 <p>By accessing or using Clarix AI (&ldquo;the Service&rdquo;), you agree to be bound by these Terms of Service. If you do not agree, do not use the Service.</p>
 
                 <h2>2. Description of Service</h2>
-                <p>Clarix AI provides an AI-powered workspace that includes chat, image generation, document creation, code assistance, music composition, video editing, and other AI tools. The Service uses multiple third-party AI models routed through our Mixture of Agents system.</p>
+                <p>Clarix AI provides an AI-powered workspace that includes chat, image generation, document creation, code assistance, music composition, video editing, and other AI tools. The Service uses multiple AI providers (like OpenAI, Google, and Anthropic) and automatically picks the best one for your task.</p>
 
                 <h2>3. User Accounts</h2>
                 <p>You must provide accurate information when creating an account. You are responsible for maintaining the security of your account credentials. You must be at least 18 years old to use the Service.</p>

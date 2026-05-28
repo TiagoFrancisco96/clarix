@@ -86,22 +86,22 @@ function InfoPageInner() {
                     {activeTab === 'about' && (
                         <div className="info-hub-section fade-in">
                             <span className="info-page__badge">Our Story</span>
-                            <h1 className="info-page__title">Unified AI Orchestration</h1>
+                            <h1 className="info-page__title">All Your AI Tools in One Place</h1>
                             <p className="info-page__subtitle">
-                                Clarix AI is an all-in-one AI platform that connects users directly to the world&apos;s most capable foundation models under one premium workspace.
+                                Clarix AI is an all-in-one platform that gives you access to the world&apos;s best AI tools under one simple workspace.
                             </p>
 
                             <h2>Our Vision</h2>
                             <p>
-                                Model proliferation creates a massive cognitive burden for creators and developers. Choosing between models is a zero-sum game. Clarix removes this friction by hosting every model in a single unified interface and automatically routing tasks to the ideal provider via our **Mixture of Agents (MoA)** routing technology.
+                                There are too many AI tools out there, and picking the right one is overwhelming. Clarix solves this by putting the 4 best AIs in one place and automatically picking the right one for your task — so you never have to think about it.
                             </p>
 
                             <h2>Core Values</h2>
                             <div className="values-grid" style={{ marginTop: '2rem' }}>
                                 <div className="value-card">
                                     <div className="value-card__icon">⚡</div>
-                                    <div className="value-card__title">Sub-200ms Uptime</div>
-                                    <div className="value-card__desc">Obsessive performance optimization across all system layers.</div>
+                                    <div className="value-card__title">Lightning Fast</div>
+                                    <div className="value-card__desc">Instant responses across all tools — no waiting around.</div>
                                 </div>
                                 <div className="value-card">
                                     <div className="value-card__icon">🔒</div>
@@ -111,7 +111,7 @@ function InfoPageInner() {
                                 <div className="value-card">
                                     <div className="value-card__icon">✨</div>
                                     <div className="value-card__title">Product Excellence</div>
-                                    <div className="value-card__desc">We ship beautiful, pixel-perfect, highly operational software.</div>
+                                    <div className="value-card__desc">We ship beautiful, easy-to-use software that just works.</div>
                                 </div>
                             </div>
                         </div>
@@ -129,8 +129,8 @@ function InfoPageInner() {
                             <div className="info-card-grid">
                                 <div className="info-card">
                                     <div className="info-card__tag">Engineering</div>
-                                    <div className="info-card__title">MoA Infrastructure Engineer</div>
-                                    <div className="info-card__desc">Optimize low-latency concurrent routing pipelines and model polling networks in Node.js and Rust.</div>
+                                    <div className="info-card__title">AI Systems Engineer</div>
+                                    <div className="info-card__desc">Build and optimize the systems that connect our users to the world&apos;s best AI models, fast and reliably.</div>
                                     <div className="info-card__meta">Remote · Full-time · $160K - $220K</div>
                                 </div>
                                 <div className="info-card">
@@ -163,21 +163,21 @@ function InfoPageInner() {
                                     <div className="timeline-item__badge">May 2026</div>
                                     <h3 className="timeline-item__title">v2.1 — Dynamic Status & Audits</h3>
                                     <p className="timeline-item__text">
-                                        Shipped the Dynamic Heartbeat Status Monitor, fully evaluating latencies of OpenAI, Anthropic, Google, and Fal.ai. Expanded E2E automated pipeline verification directly inside the Admin panel.
+                                        Launched a real-time health monitor that checks all AI providers are online and responding fast. Added automated testing tools directly in the admin panel.
                                     </p>
                                 </div>
                                 <div className="timeline-item">
                                     <div className="timeline-item__badge">April 2026</div>
-                                    <h3 className="timeline-item__title">v2.0 — MoA Routing Engine 2.0</h3>
+                                    <h3 className="timeline-item__title">v2.0 — Smarter AI Routing</h3>
                                     <p className="timeline-item__text">
-                                        Launched our second generation Mixture-of-Agents routing engine, significantly cutting tokens costs by 35% while upgrading response reasoning. Shipped native audio/video generation endpoints.
+                                        Launched a smarter system that automatically picks the best AI for each task, cutting costs by 35% while delivering better answers. Added built-in audio and video creation.
                                     </p>
                                 </div>
                                 <div className="timeline-item">
                                     <div className="timeline-item__badge">March 2026</div>
                                     <h3 className="timeline-item__title">v1.8 — React 19 & Next.js Upgrades</h3>
                                     <p className="timeline-item__text">
-                                        Completely refactored the workspace components for strict React 19 purity compliance. Restructured asynchronous state setters within standard effect rendering blocks.
+                                        Major under-the-hood upgrade to make the entire workspace faster and more reliable. Improved how all tools load and respond.
                                     </p>
                                 </div>
                             </div>
@@ -190,21 +190,21 @@ function InfoPageInner() {
                             <span className="info-page__badge">Engineering Notes</span>
                             <h1 className="info-page__title">From the Clarix Tech Blog</h1>
                             <p className="info-page__subtitle">
-                                Deep technical insights from our infrastructure, security, and machine learning teams.
+                                Behind-the-scenes insights from our engineering, security, and AI teams.
                             </p>
 
                             <div className="info-card-grid">
                                 <div className="info-card">
                                     <div className="info-card__tag">Infrastructure</div>
-                                    <div className="info-card__title">Designing a Multi-LLM Graceful Fallback Mesh</div>
-                                    <div className="info-card__desc">How we built a robust fallback network that auto-routes video/image requests to Kling 3.0 or Flux Schnell in under 150ms upon primary API outages.</div>
-                                    <div className="info-card__meta">By Team Infrastructure · 6 min read</div>
+                                    <div className="info-card__title">How We Keep Your AI Running 24/7</div>
+                                    <div className="info-card__desc">How we built a backup system that automatically switches to a different AI if one goes down — so your work is never interrupted.</div>
+                                    <div className="info-card__meta">By the Engineering Team · 6 min read</div>
                                 </div>
                                 <div className="info-card">
                                     <div className="info-card__tag">Compliance</div>
-                                    <div className="info-card__title">Zero Data Training Policy at Scale</div>
-                                    <div className="info-card__desc">A technical breakdown of our secure API routing layer that prevents any model provider from using user creation buffers for training.</div>
-                                    <div className="info-card__meta">By Team Security · 4 min read</div>
+                                    <div className="info-card__title">Your Data is Never Used for AI Training</div>
+                                    <div className="info-card__desc">How we make sure none of the AI companies we work with can use your conversations or files to improve their models.</div>
+                                    <div className="info-card__meta">By the Security Team · 4 min read</div>
                                 </div>
                             </div>
                         </div>

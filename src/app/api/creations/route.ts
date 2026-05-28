@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
     const tool = request.nextUrl.searchParams.get('tool');
     if (!tool) return NextResponse.json({ error: 'Missing tool parameter' }, { status: 400 });
 
-    const creations = listCreations(user.id, tool);
+    const creations = await listCreations(user.id, tool);
     return NextResponse.json({ creations });
 }
 
@@ -168,11 +168,11 @@ export async function DELETE(request: NextRequest) {
     if (!creationId) return NextResponse.json({ error: 'Missing creationId' }, { status: 400 });
 
     // Get the creation to clean up disk file
-    const creation = getCreation(creationId, user.id);
+    const creation = await getCreation(creationId, user.id);
     if (creation?.file_path && fs.existsSync(creation.file_path)) {
         fs.unlinkSync(creation.file_path);
     }
 
-    deleteCreation(creationId, user.id);
+    await deleteCreation(creationId, user.id);
     return NextResponse.json({ success: true });
 }

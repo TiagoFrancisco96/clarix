@@ -36,78 +36,51 @@ type AIModelWithStats = AIModel & {
     priceScore: number;
     codingScore: number;
     visualScore: number;
-    tokenIn: string;
-    tokenOut: string;
+    creditCost: string;
     isAuto?: boolean;
 };
 
 const AI_MODELS: AIModelWithStats[] = [
-    { id: 'auto', name: 'Auto', provider: 'Clarix', color: '#d4a843', description: 'Picks the best model · saves credits automatically', priceScore: 0, codingScore: 0, visualScore: 0, tokenIn: '', tokenOut: '', isAuto: true },
-    { id: 'deepseek-v4-flash', name: 'DeepSeek V4-Flash', provider: 'DeepSeek', color: '#a78bfa', description: 'Fastest · most affordable', priceScore: 1, codingScore: 2, visualScore: 1, tokenIn: '$0.14/M tok', tokenOut: '$0.28/M tok' },
-    { id: 'claude-sonnet-4.6', name: 'Claude Sonnet 4.6', provider: 'Anthropic', color: '#e8915a', description: 'Smart reasoning · great for coding', priceScore: 2, codingScore: 4, visualScore: 4, tokenIn: '$3/M tok', tokenOut: '$15/M tok' },
-    { id: 'gpt-5.4', name: 'GPT-5.4', provider: 'OpenAI', color: '#10a37f', description: 'Balanced · reliable for everything', priceScore: 3, codingScore: 3, visualScore: 3, tokenIn: '$5/M tok', tokenOut: '$15/M tok' },
-    { id: 'gemini-3.1-pro', name: 'Gemini 3.1 Pro', provider: 'Google', color: '#4285f4', description: 'Massive context · 2M tokens', priceScore: 3, codingScore: 3, visualScore: 4, tokenIn: '$3.5/M tok', tokenOut: '$10.5/M tok' },
-    { id: 'grok-4.3', name: 'Grok 4.3', provider: 'xAI', color: '#1da1f2', description: 'Real-time data · live web access', priceScore: 3, codingScore: 3, visualScore: 2, tokenIn: '$5/M tok', tokenOut: '$15/M tok' },
-    { id: 'gpt-5.5', name: 'GPT-5.5', provider: 'OpenAI', color: '#0fa37f', description: 'Most intelligent · best reasoning', priceScore: 4, codingScore: 4, visualScore: 4, tokenIn: '$15/M tok', tokenOut: '$60/M tok' },
-    { id: 'claude-opus-4.7', name: 'Claude Opus 4.7', provider: 'Anthropic', color: '#d4763c', description: 'Best coder · deepest analysis', priceScore: 4, codingScore: 5, visualScore: 3, tokenIn: '$15/M tok', tokenOut: '$75/M tok' },
+    { id: 'auto', name: '✨ Smart Pick', provider: 'Clarix', color: '#d4a843', description: 'Automatically picks the best AI for your task', priceScore: 0, codingScore: 0, visualScore: 0, creditCost: '', isAuto: true },
+    { id: 'deepseek-v4-flash', name: '⚡ Speed', provider: 'DeepSeek', color: '#a78bfa', description: 'Fastest replies · uses the fewest credits', priceScore: 1, codingScore: 2, visualScore: 1, creditCost: '1 credit' },
+    { id: 'gpt-5.4', name: '✍️ Writer', provider: 'OpenAI', color: '#10a37f', description: 'Best for writing, emails & creative work', priceScore: 2, codingScore: 3, visualScore: 3, creditCost: '3 credits' },
+    { id: 'claude-sonnet-4.6', name: '💻 Pro', provider: 'Anthropic', color: '#e8915a', description: 'Smartest · coding, analysis & complex tasks', priceScore: 3, codingScore: 5, visualScore: 4, creditCost: '3 credits' },
+    { id: 'gemini-3.1-pro', name: '📚 Research', provider: 'Google', color: '#4285f4', description: 'Deep research · reads very long documents', priceScore: 2, codingScore: 3, visualScore: 4, creditCost: '2 credits' },
 ];
 
-/* ── MoA Auto Router ── */
-/* Classifies user prompt → selects best model by task type */
+/* ── Smart Auto Router ── */
+/* Analyzes what you're asking and picks the best AI for the job */
 function autoRouteToModel(userMessage: string): AIModelWithStats {
     const msg = userMessage.toLowerCase();
 
-    // Coding patterns → Claude Sonnet 4.6 (best value coder)
-    const codePatterns = /\b(code|function|bug|error|debug|refactor|typescript|javascript|python|react|css|html|api|class|component|import|export|async|await|const |let |var |console\.|\{\}|=>|\(\)|npm|yarn|git|sql|database|schema|algorithm|regex|compile)\b|```/i;
+    // Coding & technical tasks → Pro (Claude Sonnet 4.6)
+    const codePatterns = /\b(code|function|bug|error|debug|refactor|typescript|javascript|python|react|css|html|api|class|component|import|export|async|await|const |let |var |console\.|\{\}|=>|\(\)|npm|yarn|git|sql|database|schema|algorithm|regex|compile|architect|codebase|system design|migrate)\b|```/i;
     if (codePatterns.test(msg)) {
-        // Complex code → Opus 4.7, simpler code → Sonnet 4.6
-        const complexCode = /\b(architect|refactor entire|multi.?file|codebase|system design|migrate|redesign|optimize performance)\b/i;
-        if (complexCode.test(msg)) return AI_MODELS.find(m => m.id === 'claude-opus-4.7')!;
         return AI_MODELS.find(m => m.id === 'claude-sonnet-4.6')!;
     }
 
-    // Research / analysis patterns → Gemini 3.1 Pro (huge context)
+    // Research & analysis → Research (Gemini 3.1 Pro)
     const researchPatterns = /\b(research|analyze|compare|summarize|review|study|investigate|data|statistics|report|document|paper|article|read this|context|long)\b/i;
     if (researchPatterns.test(msg) && msg.length > 200) {
         return AI_MODELS.find(m => m.id === 'gemini-3.1-pro')!;
     }
 
-    // Writing patterns → GPT-5.4 (balanced, great writing)
-    const writingPatterns = /\b(write|essay|article|blog|story|creative|draft|rewrite|edit|proofread|email|letter|pitch|presentation|speech|copy|tone|style|narrative)\b/i;
+    // Writing & creative tasks → Writer (GPT-5.4)
+    const writingPatterns = /\b(write|essay|article|blog|story|creative|draft|rewrite|edit|proofread|email|letter|pitch|presentation|speech|copy|tone|style|narrative|explain why|step by step|prove|reason|logic|philosophy|debate|argument|calculate|complex|advanced|deep dive|latest|today|current|news|trending)\b/i;
     if (writingPatterns.test(msg)) {
         return AI_MODELS.find(m => m.id === 'gpt-5.4')!;
     }
 
-    // Complex reasoning patterns → GPT-5.5 (top reasoning)
-    const complexPatterns = /\b(explain why|step by step|prove|derive|reason|logic|philosophy|ethics|debate|argument|theorem|calculate|complex|advanced|deep dive)\b/i;
-    if (complexPatterns.test(msg)) {
-        return AI_MODELS.find(m => m.id === 'gpt-5.5')!;
-    }
-
-    // Real-time / current events → Grok 4.3
-    const realtimePatterns = /\b(latest|today|current|news|trending|stock|weather|live|recent|2026|this week|right now|what happened)\b/i;
-    if (realtimePatterns.test(msg)) {
-        return AI_MODELS.find(m => m.id === 'grok-4.3')!;
-    }
-
-    // Default: simple/short messages → DeepSeek V4-Flash (cheapest)
+    // Quick/simple questions → Speed (DeepSeek V4-Flash)
     if (msg.length < 100) {
         return AI_MODELS.find(m => m.id === 'deepseek-v4-flash')!;
     }
 
-    // Medium complexity default → GPT-5.4
+    // Default for everything else → Writer (GPT-5.4)
     return AI_MODELS.find(m => m.id === 'gpt-5.4')!;
 }
 
-/* ── Simulated AI Response ── */
-function generateSimulatedResponse(userMessage: string, model: string): string {
-    const responses = [
-        `Great question! Here's my analysis:\n\n**Key Points:**\n1. Your prompt touches on an interesting topic\n2. Let me break this down step by step\n3. There are several perspectives to consider\n\n\`\`\`javascript\n// Here's a code example\nconst greeting = "Hello from ${model}";\nconsole.log(greeting);\n\`\`\`\n\nWould you like me to elaborate on any of these points?`,
-        `I'd be happy to help with that! Based on your question about "${userMessage.slice(0, 50)}...":\n\n- **First**, let me understand the context\n- **Second**, I'll provide a comprehensive answer\n- **Third**, I'll suggest next steps\n\n> The key insight here is that complex problems often have elegant solutions when approached systematically.\n\nLet me know if you'd like to dive deeper!`,
-        `Here's a thoughtful response to your query:\n\n## Analysis\n\nYour question brings up several important considerations. Let me walk through them:\n\n1. **Understanding**: The core idea behind this is fascinating\n2. **Application**: Here's how you might approach it in practice\n3. **Optimization**: Consider these improvements\n\n\`\`\`python\n# Python example\ndef solve(problem):\n    steps = analyze(problem)\n    return optimize(steps)\n\`\`\`\n\nThis is a simplified view — the actual implementation would need more nuance. What aspects interest you most?`,
-    ];
-    return responses[Math.floor(Math.random() * responses.length)];
-}
+
 
 /* ── Main Chat Page ── */
 export default function ChatPage() {
@@ -224,7 +197,7 @@ function ChatPageInner() {
                 prev.map((c) => {
                     if (c.id === convId) {
                         const updated = { ...c, messages: [...c.messages, userMsg] };
-                        if (c.messages.length === 0) {
+                        if (c.messages.filter(m => m.role !== 'system').length === 0) {
                             updated.title = text.slice(0, 40) + (text.length > 40 ? '...' : '');
                         }
                         return updated;
@@ -236,21 +209,21 @@ function ChatPageInner() {
             setInput('');
             setIsGenerating(true);
 
-            // Auto-route or use selected model
-            let modelInfo: AIModelWithStats;
+            // Pre-select model info for the initial placeholder badge
+            let initialModelInfo: AIModelWithStats;
             if (selectedModel === 'auto') {
-                modelInfo = autoRouteToModel(text);
+                initialModelInfo = autoRouteToModel(text);
             } else {
-                modelInfo = AI_MODELS.find((m) => m.id === selectedModel) || AI_MODELS[1];
+                initialModelInfo = AI_MODELS.find((m) => m.id === selectedModel) || AI_MODELS[1];
             }
-            const fullResponse = generateSimulatedResponse(text, modelInfo.name);
 
+            const assistantMsgId = `msg-${Date.now() + 1}`;
             const assistantMsg: Message = {
-                id: `msg-${Date.now() + 1}`,
+                id: assistantMsgId,
                 role: 'assistant',
                 content: '',
-                model: modelInfo.name,
-                modelColor: modelInfo.color,
+                model: initialModelInfo.name,
+                modelColor: initialModelInfo.color,
                 timestamp: Date.now(),
             };
 
@@ -261,31 +234,127 @@ function ChatPageInner() {
                 )
             );
 
-            // Simulate streaming character by character
-            let currentContent = '';
-            for (let i = 0; i < fullResponse.length; i++) {
-                currentContent += fullResponse[i];
-                const streamedContent = currentContent;
+            try {
+                // Build the full message history to send to the API
+                const currentConv = conversations.find(c => c.id === convId);
+                const apiMessages = [
+                    ...(currentConv?.messages || []).map(m => ({ role: m.role, content: m.content })),
+                    { role: 'user' as const, content: text },
+                ];
 
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        messages: apiMessages,
+                        model: selectedModel,
+                        conversationId: convId,
+                        agentId: activeAgent?.id,
+                    }),
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                    throw new Error(errData.error || `HTTP ${response.status}`);
+                }
+
+                if (!response.body) throw new Error('No response body');
+
+                // Read the SSE stream
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let sseBuffer = '';
+                let streamedContent = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    sseBuffer += decoder.decode(value, { stream: true });
+                    const lines = sseBuffer.split('\n');
+                    sseBuffer = lines.pop() || '';
+
+                    for (const line of lines) {
+                        const trimmed = line.trim();
+                        if (!trimmed.startsWith('data: ')) continue;
+                        const data = trimmed.slice(6);
+
+                        try {
+                            const event = JSON.parse(data);
+
+                            if (event.type === 'meta') {
+                                // Update model badge with actual provider info
+                                setConversations((prev) =>
+                                    prev.map((c) => {
+                                        if (c.id === convId) {
+                                            const msgs = [...c.messages];
+                                            const lastIdx = msgs.length - 1;
+                                            msgs[lastIdx] = {
+                                                ...msgs[lastIdx],
+                                                model: event.model,
+                                                modelColor: event.modelColor,
+                                            };
+                                            return { ...c, messages: msgs };
+                                        }
+                                        return c;
+                                    })
+                                );
+                            } else if (event.type === 'chunk') {
+                                streamedContent += event.text;
+                                const updatedContent = streamedContent;
+                                setConversations((prev) =>
+                                    prev.map((c) => {
+                                        if (c.id === convId) {
+                                            const msgs = [...c.messages];
+                                            const lastIdx = msgs.length - 1;
+                                            msgs[lastIdx] = { ...msgs[lastIdx], content: updatedContent };
+                                            return { ...c, messages: msgs };
+                                        }
+                                        return c;
+                                    })
+                                );
+                            } else if (event.type === 'error') {
+                                streamedContent += `\n\n⚠️ ${event.message}`;
+                                const errorContent = streamedContent;
+                                setConversations((prev) =>
+                                    prev.map((c) => {
+                                        if (c.id === convId) {
+                                            const msgs = [...c.messages];
+                                            const lastIdx = msgs.length - 1;
+                                            msgs[lastIdx] = { ...msgs[lastIdx], content: errorContent };
+                                            return { ...c, messages: msgs };
+                                        }
+                                        return c;
+                                    })
+                                );
+                            }
+                            // 'done' event — stream is complete, no action needed
+                        } catch {
+                            // Skip malformed SSE events
+                        }
+                    }
+                }
+            } catch (err) {
+                const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
                 setConversations((prev) =>
                     prev.map((c) => {
                         if (c.id === convId) {
                             const msgs = [...c.messages];
                             const lastIdx = msgs.length - 1;
-                            msgs[lastIdx] = { ...msgs[lastIdx], content: streamedContent };
+                            msgs[lastIdx] = {
+                                ...msgs[lastIdx],
+                                content: `⚠️ **Error:** ${errorMessage}\n\nPlease check your API keys in the server configuration and try again.`,
+                            };
                             return { ...c, messages: msgs };
                         }
                         return c;
                     })
                 );
-
-                // Variable speed for realistic feel
-                await new Promise((r) => setTimeout(r, Math.random() * 15 + 5));
+            } finally {
+                setIsGenerating(false);
             }
-
-            setIsGenerating(false);
         },
-        [input, isGenerating, activeConvId, selectedModel, createNewConversation, activeAgent]
+        [input, isGenerating, activeConvId, selectedModel, createNewConversation, activeAgent, conversations]
     );
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -434,10 +503,9 @@ function ChatPageInner() {
                                                 </div>
 
                                                 <div className="model-selector__tooltip-footer">
-                                                    <span className="model-selector__tooltip-title">Token price</span>
+                                                    <span className="model-selector__tooltip-title">Cost per message</span>
                                                     <div className="model-selector__tooltip-prices">
-                                                        <span>In: <span className="highlight">{model.tokenIn}</span></span>
-                                                        <span>Out: <span className="highlight">{model.tokenOut}</span></span>
+                                                        <span>~<span className="highlight">{model.creditCost}</span> per reply</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -622,9 +690,9 @@ function ChatPageInner() {
                         </div>
                     </div>
                     <div className="chat-input__info">
-                        <span>⚡ {selectedModelInfo.isAuto ? 'Auto routing active' : selectedModelInfo.name}</span>
+                        <span>⚡ {selectedModelInfo.isAuto ? 'Smart Pick is on' : selectedModelInfo.name}</span>
                         <span>·</span>
-                        <span>{selectedModelInfo.isAuto ? 'Saves costs on simple queries' : `Token pricing applies`}</span>
+                        <span>{selectedModelInfo.isAuto ? 'Uses fewer credits on simple questions' : `~${selectedModelInfo.creditCost} per reply`}</span>
                     </div>
                 </div>
             </div>
@@ -632,17 +700,23 @@ function ChatPageInner() {
     );
 }
 
-/* ── HTML sanitization ── */
-function escapeHtml(text: string): string {
-    return text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+/* ── Safe JSX Markdown parser ── */
+function renderInline(text: string): React.ReactNode[] {
+    const parts = text.split(/(\*\*.*?\*\*|\*.*?\*|`.*?`)/g);
+    return parts.map((chunk, idx) => {
+        if (chunk.startsWith('**') && chunk.endsWith('**')) {
+            return <strong key={idx}>{chunk.slice(2, -2)}</strong>;
+        }
+        if (chunk.startsWith('*') && chunk.endsWith('*')) {
+            return <em key={idx}>{chunk.slice(1, -1)}</em>;
+        }
+        if (chunk.startsWith('`') && chunk.endsWith('`')) {
+            return <code key={idx} className="inline-code">{chunk.slice(1, -1)}</code>;
+        }
+        return chunk;
+    });
 }
 
-/* ── Simple Markdown-like renderer ── */
 function MessageContent({ content }: { content: string }) {
     if (!content) return null;
 
@@ -672,19 +746,31 @@ function MessageContent({ content }: { content: string }) {
                     );
                 }
 
-                // Inline formatting
+                // Render block items safely
+                const lines = part.split('\n');
                 return (
-                    <div key={i} className="prose" dangerouslySetInnerHTML={{
-                        __html: escapeHtml(part)
-                            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                            .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                            .replace(/`(.*?)`/g, '<code class="inline-code">$1</code>')
-                            .replace(/^## (.*$)/gm, '<h3>$1</h3>')
-                            .replace(/^&gt; (.*)$/gm, '<blockquote>$1</blockquote>')
-                            .replace(/^- (.*)$/gm, '<li>$1</li>')
-                            .replace(/^(\d+)\. (.*)$/gm, '<li>$2</li>')
-                            .replace(/\n/g, '<br />')
-                    }} />
+                    <div key={i} className="prose">
+                        {lines.map((line, lineIdx) => {
+                            const trimmed = line.trim();
+                            if (trimmed.startsWith('## ')) {
+                                return <h3 key={lineIdx}>{renderInline(trimmed.slice(3))}</h3>;
+                            }
+                            if (trimmed.startsWith('> ')) {
+                                return <blockquote key={lineIdx}>{renderInline(trimmed.slice(2))}</blockquote>;
+                            }
+                            if (trimmed.startsWith('- ')) {
+                                return <li key={lineIdx}>{renderInline(trimmed.slice(2))}</li>;
+                            }
+                            const matchNum = trimmed.match(/^(\d+)\.\s(.*)$/);
+                            if (matchNum) {
+                                return <li key={lineIdx}>{renderInline(matchNum[2])}</li>;
+                            }
+                            if (line === '') {
+                                return <br key={lineIdx} />;
+                            }
+                            return <p key={lineIdx}>{renderInline(line)}</p>;
+                        })}
+                    </div>
                 );
             })}
         </>

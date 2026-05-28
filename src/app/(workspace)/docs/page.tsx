@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useCreations } from '@/hooks/useCreations';
+import { useToast } from '@/components/Toast';
 import './docs.css';
 
 /* ── Types ── */
@@ -44,6 +45,7 @@ export default function DocsPage() {
 
     // Persistence
     const { creations, isLoading: isLoadingDocs, saveCreation } = useCreations('docs');
+    const { toast } = useToast();
 
     const activeDoc = documents.find((d) => d.id === activeDocId);
 
@@ -111,24 +113,74 @@ export default function DocsPage() {
         setIsAiWorking(true);
         setShowAiMenu(false);
 
-        // Simulated AI responses
-        await new Promise((r) => setTimeout(r, 1500 + Math.random() * 1000));
-
-        const additions: Record<string, string> = {
-            generate: `\n\n## AI Generated Content\n\nHere is the content based on your prompt: "${aiPrompt}"\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.\n\n### Key Points\n\n1. **First insight** — detailed explanation\n2. **Second insight** — supporting evidence\n3. **Third insight** — practical application`,
-            expand: `\n\n---\n*[AI Expanded content]*\n\nTo elaborate further on this topic, it's worth considering the broader implications. The underlying principles suggest a systematic approach that involves careful planning and iterative refinement. This methodology has been validated across numerous case studies and practical applications.`,
-            summarize: `\n\n---\n> **AI Summary:** This document covers key topics including organizational strategy, implementation methodology, and expected outcomes. The core message emphasizes systematic improvement through iterative processes.`,
-            improve: `\n\n---\n*[AI Improved version available]*\n\nThe enhanced version incorporates stronger transitions, more precise language, and a clearer logical flow. Key improvements include refined sentence structure and more compelling supporting evidence.`,
-            translate: `\n\n---\n*[Translation]*\n\nCe document traite des sujets clés, notamment la stratégie organisationnelle, la méthodologie de mise en œuvre et les résultats attendus.`,
-            tone: `\n\n---\n*[Tone adjusted]*\n\nHey there! So here's the deal — we've got some really exciting stuff to talk about. Let me break it down in a way that's easy to digest...`,
+        const systemPrompts: Record<string, string> = {
+            generate: `You are a document writing assistant. Generate content based on the user's prompt. Output clean text suitable for a markdown document. Do not include code fences or "here is" preamble.`,
+            expand: `You are a writing assistant. Expand and elaborate on the following text with more detail, examples, and depth. Output only the expanded text.`,
+            summarize: `You are a writing assistant. Summarize the following text concisely. Start with "> **Summary:**" followed by the key points.`,
+            improve: `You are a writing assistant. Improve the clarity, flow, and professionalism of the following text. Output only the improved version.`,
+            translate: `You are a translator. Translate the following text to French. Output only the translation.`,
+            tone: `You are a writing assistant. Rewrite the following text in a casual, friendly tone. Output only the rewritten version.`,
         };
 
-        const addition = additions[actionId] || additions.generate;
-        updateContent(activeDoc.content + addition);
-        setAiPrompt('');
-        setIsAiWorking(false);
-        // Save updated doc
-        saveCreation({ title: activeDoc.title, content: activeDoc.content + addition });
+        const userContent = actionId === 'generate'
+            ? aiPrompt || 'Write a paragraph about this topic.'
+            : activeDoc.content;
+
+        try {
+            const res = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    messages: [
+                        { role: 'system', content: systemPrompts[actionId] || systemPrompts.generate },
+                        { role: 'user', content: userContent },
+                    ],
+                    model: 'auto',
+                }),
+            });
+
+            if (res.status === 402) {
+                toast('You\'re out of credits. Upgrade in Settings → Subscription.', 'warning');
+                setIsAiWorking(false);
+                return;
+            }
+
+            let fullText = '';
+            const reader = res.body?.getReader();
+            const decoder = new TextDecoder();
+            if (reader) {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    const chunk = decoder.decode(value, { stream: true });
+                    const lines = chunk.split('\n').filter(l => l.startsWith('data: '));
+                    for (const line of lines) {
+                        try {
+                            const data = JSON.parse(line.slice(6));
+                            if (data.type === 'chunk') fullText += data.text;
+                            if (data.type === 'done' && data.fullText) fullText = data.fullText;
+                        } catch { /* skip */ }
+                    }
+                }
+            }
+
+            const addition = actionId === 'improve' || actionId === 'tone' || actionId === 'translate'
+                ? fullText   // replace content
+                : `\n\n${fullText}`; // append content
+
+            const newContent = actionId === 'improve' || actionId === 'tone' || actionId === 'translate'
+                ? fullText
+                : activeDoc.content + `\n\n${fullText}`;
+
+            updateContent(newContent);
+            saveCreation({ title: activeDoc.title, content: newContent });
+        } catch (err) {
+            console.error('[Docs AI] Error:', err);
+            updateContent(activeDoc.content + '\n\n*AI generation failed. Please try again.*');
+        } finally {
+            setAiPrompt('');
+            setIsAiWorking(false);
+        }
     };
 
     // Template Selection View

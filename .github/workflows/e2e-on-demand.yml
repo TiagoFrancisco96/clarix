@@ -1,0 +1,92 @@
+name: Playwright E2E Click Audit (On-Demand & Scheduled)
+
+on:
+  workflow_dispatch:
+    inputs:
+      site_url:
+        description: 'Target Site URL to run E2E Click Audits on'
+        required: true
+        default: 'https://clarix.ai'
+  schedule:
+    # Run twice a day at 12 AM and 12 PM UTC
+    - cron: '0 0,12 * * *'
+
+jobs:
+  e2e_audit:
+    name: Run E2E Clicks Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Dependencies
+        run: npm ci || npm install
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+
+      - name: Set Site URL Variable
+        id: set_url
+        run: |
+          # Use manual input or default fallback
+          SITE_URL="${{ github.event.inputs.site_url }}"
+          if [ -z "$SITE_URL" ]; then
+            SITE_URL="https://clarix.ai"
+          fi
+          echo "target_url=$SITE_URL" >> $GITHUB_OUTPUT
+          echo "Running Playwright E2E clicks audit on: $SITE_URL"
+
+      - name: Run Playwright Tests
+        id: playwright_run
+        continue-on-error: true
+        env:
+          NEXT_PUBLIC_SITE_URL: ${{ steps.set_url.outputs.target_url }}
+        run: |
+          npx playwright test
+
+      - name: Process Audit Status
+        id: audit_status
+        run: |
+          # Determine success or failure status
+          if [ "${{ steps.playwright_run.outcome }}" = "success" ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "severity=low" >> $GITHUB_OUTPUT
+            echo "message=E2E Click Audit completed successfully. All core flows are nominal." >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "severity=critical" >> $GITHUB_OUTPUT
+            echo "message=E2E Click Audit FAILED! An exception or crash was detected during automated button click tests." >> $GITHUB_OUTPUT
+          fi
+
+      - name: Dispatch SRE Telemetry Callback
+        env:
+          TARGET_URL: ${{ steps.set_url.outputs.target_url }}
+          RUN_STATUS: ${{ steps.audit_status.outputs.status }}
+          SEVERITY: ${{ steps.audit_status.outputs.severity }}
+          ALERT_MSG: ${{ steps.audit_status.outputs.message }}
+          RUN_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        run: |
+          # POST callback back to Next.js telemetry report route
+          echo "Sending telemetry callback back to $TARGET_URL/api/errors/report..."
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"message\": \"$ALERT_MSG\",
+              \"severity\": \"$SEVERITY\",
+              \"component\": \"e2e\",
+              \"metadata\": \"{\\\"status\\\":\\\"$RUN_STATUS\\\",\\\"target_url\\\":\\\"$TARGET_URL\\\",\\\"github_run_url\\\":\\\"$RUN_URL\\\"}\"
+            }" \
+            --silent --show-error --fail \
+            "$TARGET_URL/api/errors/report" || echo "Warning: Telemetry callback request skipped or failed."
+
+      - name: Terminate with Status Code
+        run: |
+          if [ "${{ steps.audit_status.outputs.status }}" = "failure" ]; then
+            exit 1
+          fi

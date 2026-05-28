@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useToast } from '@/components/Toast';
 import './image.css';
 
 /* ── Types ── */
@@ -58,6 +59,7 @@ export default function ImagePage() {
     const [gallery, setGallery] = useState<GeneratedImage[]>([]);
     const [selectedImage, setSelectedImage] = useState<GeneratedImage | null>(null);
     const [toasts, setToasts] = useState<FallbackToast[]>([]);
+    const { toast } = useToast();
 
     const dismissToast = (id: string) => {
         setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -114,7 +116,7 @@ export default function ImagePage() {
             setGallery((prev) => [...newImages, ...prev]);
         } catch (error) {
             console.error('Error generating image:', error);
-            alert('Failed to generate image. Please try again.');
+            toast('Failed to generate image. Please try again.', 'error');
         } finally {
             setIsGenerating(false);
         }

@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useCreations } from '@/hooks/useCreations';
+import { useToast } from '@/components/Toast';
 import './sheets.css';
 
 /* ── Types ── */
@@ -36,6 +37,7 @@ export default function SheetsPage() {
 
     const currentModel = SHEET_MODELS.find(m => m.id === selectedModel) || SHEET_MODELS[0];
     const modelDropdownRef = useRef<HTMLDivElement>(null);
+    const { toast } = useToast();
 
     // Persistence
     const { creations, isLoading: isLoadingSheets, saveCreation } = useCreations('sheets');
@@ -77,26 +79,89 @@ export default function SheetsPage() {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [showModelDropdown]);
 
-    const handleAiQuery = () => {
+    const handleAiQuery = async () => {
         if (!aiPrompt.trim() || isProcessing) return;
         setIsProcessing(true);
 
-        setTimeout(() => {
-            // Simulate AI modifying the sheet
-            const updatedData = [...data.map(row => [...row])];
-            if (aiPrompt.toLowerCase().includes('sort')) {
-                updatedData.sort((a, b) => {
-                    const aVal = a[6]?.replace(/[$,]/g, '') || '0';
-                    const bVal = b[6]?.replace(/[$,]/g, '') || '0';
-                    return parseFloat(bVal) - parseFloat(aVal);
-                });
+        try {
+            const csvContext = [INITIAL_HEADERS, ...data]
+                .map(row => row.join('\t'))
+                .join('\n');
+
+            const res = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    messages: [
+                        {
+                            role: 'system',
+                            content: `You are a spreadsheet AI assistant. You have a table with these headers: ${INITIAL_HEADERS.join(', ')}.\n\nCurrent data:\n${csvContext}\n\nThe user will ask you to modify, sort, analyze, or add data to this table. Return ONLY a JSON array of arrays representing the updated rows (without headers). Each row must have exactly ${COLUMNS.length} cells. Do not include explanations or markdown code fences. Output raw JSON only.`,
+                        },
+                        { role: 'user', content: aiPrompt },
+                    ],
+                    model: selectedModel,
+                }),
+            });
+
+            if (res.status === 402) {
+                toast('You\'re out of credits. Upgrade in Settings → Subscription.', 'warning');
+                setIsProcessing(false);
+                return;
             }
-            setData(updatedData);
+
+            let fullText = '';
+            const reader = res.body?.getReader();
+            const decoder = new TextDecoder();
+            if (reader) {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    const chunk = decoder.decode(value, { stream: true });
+                    const lines = chunk.split('\n').filter(l => l.startsWith('data: '));
+                    for (const line of lines) {
+                        try {
+                            const d = JSON.parse(line.slice(6));
+                            if (d.type === 'chunk') fullText += d.text;
+                            if (d.type === 'done' && d.fullText) fullText = d.fullText;
+                        } catch { /* skip */ }
+                    }
+                }
+            }
+
+            // Try to parse AI response as JSON array
+            const jsonMatch = fullText.match(/\[[\s\S]*\]/);
+            if (jsonMatch) {
+                try {
+                    const parsed = JSON.parse(jsonMatch[0]);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        const normalizedData = parsed.map((row: unknown[]) => {
+                            const r = Array.isArray(row) ? row.map(String) : [];
+                            while (r.length < COLUMNS.length) r.push('');
+                            return r.slice(0, COLUMNS.length);
+                        });
+                        setData(normalizedData);
+                        saveCreation({ title: `Spreadsheet — ${new Date().toLocaleDateString()}`, content: JSON.stringify(normalizedData), metadata: { model: selectedModel } });
+                    }
+                } catch {
+                    // If JSON parsing fails, just sort locally as fallback
+                    const updatedData = [...data.map(row => [...row])];
+                    if (aiPrompt.toLowerCase().includes('sort')) {
+                        updatedData.sort((a, b) => {
+                            const aVal = a[6]?.replace(/[$,]/g, '') || '0';
+                            const bVal = b[6]?.replace(/[$,]/g, '') || '0';
+                            return parseFloat(bVal) - parseFloat(aVal);
+                        });
+                    }
+                    setData(updatedData);
+                    saveCreation({ title: `Spreadsheet — ${new Date().toLocaleDateString()}`, content: JSON.stringify(updatedData), metadata: { model: selectedModel } });
+                }
+            }
+        } catch (err) {
+            console.error('[Sheets AI] Error:', err);
+        } finally {
             setIsProcessing(false);
             setAiPrompt('');
-            // Save to server
-            saveCreation({ title: `Spreadsheet — ${new Date().toLocaleDateString()}`, content: JSON.stringify(updatedData), metadata: { model: selectedModel } });
-        }, 1500 + Math.random() * 1000);
+        }
     };
 
     return (

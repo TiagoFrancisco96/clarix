@@ -32,7 +32,7 @@ export default function ApiDocsPage() {
                 <h2>Endpoints</h2>
 
                 <h3>POST /chat/completions</h3>
-                <p>Send a prompt and receive an AI-generated response. Supports all models and MoA routing.</p>
+                <p>Send a prompt and receive an AI-generated response. Supports all models and smart auto-routing.</p>
 
                 <h3>POST /images/generations</h3>
                 <p>Generate images from text descriptions. Supports multiple styles and resolutions.</p>

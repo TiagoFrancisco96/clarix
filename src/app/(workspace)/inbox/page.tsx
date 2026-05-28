@@ -3,8 +3,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import './inbox.css';
-
-/* ── Types ── */
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../../convex/_generated/api';
+import { useSession } from '@/lib/auth-client';
+import { Id } from '../../../../convex/_generated/dataModel';
 interface Notification {
     id: string;
     user_id: string;
@@ -47,55 +49,57 @@ export default function InboxPage() {
     const [selectedNotif, setSelectedNotif] = useState<Notification | null>(null);
     const [showArchived, setShowArchived] = useState(false);
 
-    /* ── Fetch ── */
-    const fetchNotifications = useCallback(async () => {
-        const params = new URLSearchParams();
-        if (activeCategory !== 'all') params.set('type', activeCategory);
-        if (showArchived) params.set('archived', '1');
+    const { data: sessionData } = useSession();
+    const userId = sessionData?.user?.id;
 
-        try {
-            const res = await fetch(`/api/notifications?${params.toString()}`);
-            if (res.ok) {
-                const json = await res.json();
-                setNotifications(json.notifications);
-                setUnreadCount(json.unreadCount);
-            }
-        } catch (err) {
-            console.error('Failed to fetch notifications:', err);
-        } finally {
+    // Convex queries
+    const rawNotifications = useQuery(api.notifications.listNotifications, userId ? {
+        userId,
+        type: activeCategory !== 'all' ? activeCategory : undefined,
+        showArchived: showArchived
+    } : "skip");
+
+    const unreadCountConvex = useQuery(api.notifications.getUnreadNotificationCount, userId ? { userId } : "skip");
+    
+    const updateNotif = useMutation(api.notifications.updateNotification);
+    const markAllReadMutation = useMutation(api.notifications.markAllNotificationsRead);
+
+    useEffect(() => {
+        if (rawNotifications !== undefined) {
             setLoading(false);
+            const notifs = rawNotifications.map(n => ({
+                id: n._id,
+                user_id: n.user_id,
+                type: n.type,
+                title: n.title,
+                body: n.body,
+                icon: n.icon,
+                color: n.color,
+                is_read: n.is_read,
+                is_archived: n.is_archived,
+                link: n.link,
+                created_at: new Date(n._creationTime).toISOString()
+            }));
+            setNotifications(notifs);
+            setUnreadCount(unreadCountConvex || 0);
         }
-    }, [activeCategory, showArchived]);
-
-    useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
+    }, [rawNotifications, unreadCountConvex]);
 
     /* ── Actions ── */
     const markRead = async (notifId: string) => {
-        await fetch('/api/notifications', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ notificationId: notifId, action: 'read' }),
-        });
-        fetchNotifications();
+        if (!userId) return;
+        await updateNotif({ notifId: notifId as Id<"notifications">, userId, isRead: 1 });
     };
 
     const markAllRead = async () => {
-        await fetch('/api/notifications', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'mark_all_read' }),
-        });
-        fetchNotifications();
+        if (!userId) return;
+        await markAllReadMutation({ userId });
     };
 
     const archiveNotif = async (notifId: string) => {
-        await fetch('/api/notifications', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ notificationId: notifId, action: 'archive' }),
-        });
+        if (!userId) return;
+        await updateNotif({ notifId: notifId as Id<"notifications">, userId, isArchived: 1 });
         if (selectedNotif?.id === notifId) setSelectedNotif(null);
-        fetchNotifications();
     };
 
     const openNotif = (notif: Notification) => {

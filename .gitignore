@@ -53,3 +53,9 @@ build_log.txt
 # Temp testing files and uploads
 test-download.mp3
 uploads/
+
+.vercel
+.env*.local
+
+# Playwright test results
+test-results/

@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSession, signOut } from '@/lib/auth-client';
+import { WelcomeModal } from '@/components/WelcomeModal';
+import '@/components/welcome-modal.css';
 import './workspace.css';
 
 /* ── Navigation Structure ── */
@@ -80,6 +82,51 @@ export default function WorkspaceLayout({
     const { data: session } = useSession();
     const [collapsed, setCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [creditBalance, setCreditBalance] = useState<number | null>(null);
+    const [planCredits, setPlanCredits] = useState<number>(200);
+    const [userPlan, setUserPlan] = useState<string>('free');
+
+    const fetchCredits = useCallback(async () => {
+        try {
+            const res = await fetch('/api/credits');
+            if (res.ok) {
+                const data = await res.json();
+                setCreditBalance(data.balance);
+                setUserPlan(data.plan || 'free');
+                setPlanCredits(data.plan_credits || 200);
+            }
+        } catch { /* silent fail */ }
+    }, []);
+
+    useEffect(() => {
+        if (session?.user?.id) {
+            fetchCredits();
+            const interval = setInterval(fetchCredits, 30_000);
+            return () => clearInterval(interval);
+        }
+    }, [session?.user?.id, fetchCredits]);
+
+    // Refetch on page navigation (credits may have been spent)
+    useEffect(() => {
+        if (session?.user?.id) fetchCredits();
+    }, [pathname, session?.user?.id, fetchCredits]);
+
+    /* ── Keyboard shortcuts ── */
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Ctrl+K or Cmd+K → Navigate to search
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                router.push('/search');
+            }
+            // Escape → close mobile menu
+            if (e.key === 'Escape' && mobileOpen) {
+                setMobileOpen(false);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [router, mobileOpen]);
 
     const handleSignOut = async () => {
         await signOut();
@@ -212,7 +259,9 @@ export default function WorkspaceLayout({
                     <div className="topbar__credits">
                         <span className="topbar__credits-icon">⚡</span>
                         <span className="topbar__credits-count">
-                            {session?.user?.email === 'info@rawr.productions' ? 'Unlimited' : '150'}
+                            {creditBalance !== null ? creditBalance.toLocaleString() : (
+                                <span className="topbar__credits-skeleton" />
+                            )}
                         </span>
                         <span>credits</span>
                     </div>
@@ -225,9 +274,25 @@ export default function WorkspaceLayout({
                     </Link>
                 </header>
 
+                {/* Low-credit warning banner */}
+                {creditBalance !== null && creditBalance < planCredits * 0.2 && creditBalance > 0 && (
+                    <div className="topbar__low-credit-banner">
+                        <span>⚡ You have <strong>{creditBalance}</strong> credits remaining.</span>
+                        <Link href="/settings?tab=subscription">Upgrade plan →</Link>
+                    </div>
+                )}
+                {creditBalance !== null && creditBalance <= 0 && (
+                    <div className="topbar__low-credit-banner topbar__low-credit-banner--empty">
+                        <span>⚠️ You’re out of credits! Generations are paused.</span>
+                        <Link href="/settings?tab=subscription">Get more credits →</Link>
+                    </div>
+                )}
+
                 <main className="workspace-content">
                     {children}
                 </main>
+
+                <WelcomeModal />
             </div>
         </div>
     );

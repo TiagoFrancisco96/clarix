@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
+import { useToast } from '@/components/Toast';
 import './agent-builder.css';
 
 /* ── Types ── */
@@ -67,6 +68,7 @@ export default function NewAgentPage() {
     const [testInput, setTestInput] = useState('');
     const [description, setDescription] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const { toast } = useToast();
 
     const toggleTool = (toolId: string) => {
         setTools(prev => prev.map(t => t.id === toolId ? { ...t, enabled: !t.enabled } : t));
@@ -153,7 +155,7 @@ export default function NewAgentPage() {
                                 Next →
                             </button>
                         ) : (
-                            <button className="agent-builder__nav-btn agent-builder__nav-btn--publish" onClick={() => alert(`Agent "${agentName || 'Untitled Agent'}" published successfully!`)}>
+                            <button className="agent-builder__nav-btn agent-builder__nav-btn--publish" onClick={() => toast(`Agent "${agentName || 'Untitled Agent'}" published successfully!`, 'success')}>
                                 🚀 Publish Agent
                             </button>
                         )}

@@ -87,7 +87,7 @@ export default function StatusPage() {
                             {loading ? 'Evaluating Systems...' : data?.status === 'all_systems_nominal' ? 'All Systems Nominal' : 'Partial Outage'}
                         </h1>
                         <p className="info-page__subtitle" style={{ margin: '4px 0 0 0' }}>
-                            {loading ? 'Analyzing provider API latencies and workspace pipelines...' : 'Dynamic operational evaluation of all external model providers.'}
+                            {loading ? 'Checking that all AI services are running smoothly...' : 'Real-time check of all AI providers powering your workspace.'}
                         </p>
                     </div>
 
@@ -146,12 +146,12 @@ export default function StatusPage() {
 
                 <h2 style={{ marginTop: 'var(--space-10)' }}>Service Level Agreement (SLA)</h2>
                 <p>
-                    Clarix AI routes your workloads across a globally distributed mesh network of AI models. Under ordinary operations, our system maintains **99.99% uptime** with direct routing path recovery inside 100ms.
+                    Clarix AI connects to multiple AI providers around the world. We keep everything running with **99.99% uptime** and automatic recovery if anything goes down.
                 </p>
 
                 <h2>Dynamic Heartbeat Monitor</h2>
                 <p>
-                    This dashboard queries our live services every 30 seconds to fetch absolute API latency metrics. If an external model provider (like OpenAI or Google AI) is offline, our **MoA Routing Engine** automatically redirects traffic to a fallback provider in real time, keeping your active workspace fully functional.
+                    This dashboard checks our services every 30 seconds to show you how fast each AI provider is responding. If any provider (like OpenAI or Google) goes offline, our system automatically switches to a backup provider so your workspace keeps working normally.
                 </p>
 
                 {data && (

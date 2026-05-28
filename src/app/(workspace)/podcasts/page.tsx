@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useCreations } from '@/hooks/useCreations';
+import { useToast } from '@/components/Toast';
 import './podcasts.css';
 
 /* ── Types ── */
@@ -119,6 +120,7 @@ export default function PodcastsPage() {
     const [playProgress, setPlayProgress] = useState(0);
 
     const waveformBars = useMemo(() => generateWaveform(120), []);
+    const { toast } = useToast();
 
     // Persistence
     const { creations, isLoading: isLoadingPodcasts, saveCreation } = useCreations('podcasts');
@@ -365,7 +367,7 @@ export default function PodcastsPage() {
                                         </div>
                                     </div>
                                     <div className="podcast-episode__actions">
-                                        <button className="podcast-episode__action-btn" title="Download" onClick={() => alert(`Download for "${ep.title}" will be available when connected to a real TTS API.`)}>⬇</button>
+                                        <button className="podcast-episode__action-btn" title="Download" onClick={() => toast(`Download for "${ep.title}" will be available when connected to a real TTS API.`, 'info')}>⬇</button>
                                         <button className="podcast-episode__action-btn" title="Share" onClick={() => { navigator.clipboard.writeText(`https://Clarix.ai/podcasts/${ep.id}`); }}>↗</button>
                                         <button className="podcast-episode__action-btn" title="Transcript" onClick={() => { navigator.clipboard.writeText(`${ep.title}\n\n${ep.description}\n\nHosts: ${ep.hosts}\nDuration: ${ep.duration}`); }}>📝</button>
                                     </div>
