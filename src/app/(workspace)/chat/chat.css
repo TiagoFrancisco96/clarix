@@ -710,6 +710,78 @@
     background: var(--bg-hover);
     color: var(--text-secondary);
 }
+/* AI Reasoning Toggle */
+.chat-reasoning {
+    margin-top: var(--space-2);
+    margin-bottom: var(--space-2);
+}
+
+.chat-reasoning__toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--accent-gold);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.chat-reasoning__toggle:hover {
+    background: rgba(212, 168, 67, 0.08);
+}
+
+.chat-reasoning__arrow {
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    flex-shrink: 0;
+}
+
+.chat-reasoning--open .chat-reasoning__arrow {
+    transform: rotate(90deg);
+}
+
+.chat-reasoning__content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                opacity 0.3s ease;
+    opacity: 0;
+}
+
+.chat-reasoning--open .chat-reasoning__content {
+    max-height: 2000px;
+    opacity: 1;
+}
+
+.chat-reasoning__text {
+    margin-top: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border-left: 3px solid var(--accent-gold);
+    background: rgba(212, 168, 67, 0.04);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    font-size: 0.82rem;
+    line-height: 1.7;
+    color: var(--text-muted);
+}
+
+.chat-reasoning__text p {
+    margin: 4px 0;
+}
+
+.chat-reasoning__text strong {
+    color: var(--text-secondary);
+}
+
+.chat-reasoning__text code {
+    background: rgba(255, 255, 255, 0.06);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 0.8rem;
+}
 
 /* Typing Indicator */
 .chat-typing {

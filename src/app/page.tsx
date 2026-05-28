@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession, signIn } from '@/lib/auth-client';
-import { Image, Pencil, Globe, Plus, Mic, ArrowUp, X, Check } from 'lucide-react';
+import { Plus, Mic, ArrowRight, X, Check, Zap, Search as SearchIcon } from 'lucide-react';
 import './home.css';
 
 // Removed canvas ParticleField
@@ -72,23 +72,56 @@ const AI_ENGINES = [
   { name: '📚 Research Engine', desc: 'Deep analysis & reasoning' },
 ];
 
-/* ── Tool Data ── */
+/* ── Tool Data (bento grid) ── */
 const TOOLS = [
   { href: '/chat', label: 'AI Chat', icon: '💬', desc: 'Ask anything, get answers instantly', color: '#d4a843', glow: 'rgba(212,168,67,0.3)' },
   { href: '/image', label: 'Image Creator', icon: '🎨', desc: 'Turn ideas into stunning images', color: '#4ade80', glow: 'rgba(74,222,128,0.3)' },
   { href: '/video', label: 'Video Maker', icon: '🎬', desc: 'Create videos from text prompts', color: '#8b5cf6', glow: 'rgba(139,92,246,0.3)' },
   { href: '/developer', label: 'Code Assistant', icon: '⚡', desc: 'Write, fix & debug code', color: '#a78bfa', glow: 'rgba(167,139,250,0.3)' },
   { href: '/music', label: 'Music Studio', icon: '🎵', desc: 'Compose songs & soundtracks', color: '#f472b6', glow: 'rgba(244,114,182,0.3)' },
-  { href: '/docs', label: 'Smart Docs', icon: '📄', desc: 'Write documents with AI help', color: '#4a9eff', glow: 'rgba(74,158,255,0.3)' },
   { href: '/slides', label: 'Slide Builder', icon: '📊', desc: 'Presentations in seconds', color: '#f59e0b', glow: 'rgba(245,158,11,0.3)' },
   { href: '/sheets', label: 'Smart Sheets', icon: '📈', desc: 'Analyze data & make charts', color: '#10b981', glow: 'rgba(16,185,129,0.3)' },
   { href: '/designer', label: 'Design Studio', icon: '✨', desc: 'Create beautiful interfaces', color: '#c4956a', glow: 'rgba(196,149,106,0.3)' },
-  { href: '/agents', label: 'AI Agents', icon: '🤖', desc: 'Automate repetitive tasks', color: '#6366f1', glow: 'rgba(99,102,241,0.3)' },
-  { href: '/drive', label: 'Cloud Drive', icon: '☁️', desc: 'Store & organize your files', color: '#64748b', glow: 'rgba(100,116,139,0.3)' },
   { href: '/search', label: 'Deep Search', icon: '🔍', desc: 'Research any topic in depth', color: '#14b8a6', glow: 'rgba(20,184,166,0.3)' },
   { href: '/podcasts', label: 'Podcast Creator', icon: '🎙️', desc: 'Generate audio episodes', color: '#f97316', glow: 'rgba(249,115,22,0.3)' },
   { href: '/meeting-notes', label: 'Meeting Notes', icon: '🎤', desc: 'Transcribe & summarize meetings', color: '#06b6d4', glow: 'rgba(6,182,212,0.3)' },
-  { href: '/inbox', label: 'Smart Inbox', icon: '📬', desc: 'AI-powered email management', color: '#ec4899', glow: 'rgba(236,72,153,0.3)' },
+  { href: '/drive', label: 'Cloud Drive', icon: '☁️', desc: 'Store & organize your files', color: '#64748b', glow: 'rgba(100,116,139,0.3)' },
+];
+
+/* ── Hero Tool Category Bar (below prompt) ── */
+const HERO_TOOL_CATEGORIES = [
+  {
+    title: 'Office Suite',
+    tools: [
+      { href: '/slides', label: 'AI Slides', color: '#f59e0b' },
+      { href: '/sheets', label: 'AI Sheets', color: '#10b981' },
+      { href: '/docs', label: 'AI Docs', color: '#4a9eff' },
+    ],
+  },
+  {
+    title: 'Design & Code',
+    tools: [
+      { href: '/designer', label: 'Design', color: '#c4956a' },
+      { href: '/developer', label: 'Code', color: '#a78bfa' },
+    ],
+  },
+  {
+    title: 'Content Creation',
+    tools: [
+      { href: '/chat', label: 'AI Chat', color: '#d4a843' },
+      { href: '/image', label: 'AI Image', color: '#4ade80' },
+      { href: '/video', label: 'AI Video', color: '#8b5cf6' },
+      { href: '/music', label: 'AI Music', color: '#f472b6' },
+    ],
+  },
+  {
+    title: 'Tools',
+    tools: [
+      { href: '/meeting-notes', label: 'Meeting Notes', color: '#06b6d4' },
+      { href: '/search', label: 'Deep Search', color: '#14b8a6' },
+      { href: '/agents', label: 'AI Agents', color: '#6366f1' },
+    ],
+  },
 ];
 
 /* ── FAQ Data ── */
@@ -119,19 +152,14 @@ const FAQS = [
   },
 ];
 
-/* ── Capsule Suggestions (below prompt bar) ── */
-const CAPSULE_SUGGESTIONS = [
-  { icon: Image, label: 'Create an image', prompt: 'Create a stunning, ultra-realistic illustration of a futuristic city skyline at sunset with flying cars and neon lights reflecting on glass buildings' },
-  { icon: Pencil, label: 'Write or edit', prompt: 'Write a compelling, high-converting landing page headline and subheadline for a productivity app that helps remote teams collaborate better' },
-  { icon: Globe, label: 'Look something up', prompt: 'Research the latest breakthroughs in quantum computing in 2026 and summarize the top 5 most impactful developments' },
-];
-
 /* ── Main Homepage ── */
 export default function HomePage() {
   const [promptValue, setPromptValue] = useState('');
   const [placeholder, setPlaceholder] = useState('');
   const [phIdx, setPhIdx] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const [promptMode, setPromptMode] = useState<'auto' | 'research' | 'create'>('auto');
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [navScrolled, setNavScrolled] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
@@ -141,6 +169,9 @@ export default function HomePage() {
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [isListening, setIsListening] = useState(false);
   const [voiceWaves, setVoiceWaves] = useState<number[]>(new Array(32).fill(2));
+
+  /* Derive isExpanded from prompt content */
+  const isExpanded = promptValue.includes('\n') || promptValue.length > 100;
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -170,9 +201,9 @@ export default function HomePage() {
     'Compose background music for my video...',
   ];
 
-  /* Typing animation */
+  /* Typing animation — pauses on focus, resumes on blur if empty */
   useEffect(() => {
-    if (promptValue) return;
+    if (promptValue || isFocused) return;
     const current = placeholders[phIdx];
     let timeout: NodeJS.Timeout;
 
@@ -193,7 +224,7 @@ export default function HomePage() {
 
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [placeholder, isDeleting, phIdx, promptValue]);
+  }, [placeholder, isDeleting, phIdx, promptValue, isFocused]);
 
   /* Navbar scroll */
   useEffect(() => {
@@ -345,7 +376,6 @@ export default function HomePage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isListening, cancelDictation]);
 
-  const isExpanded = promptValue.length > 0 || (attachedFile !== null);
 
   return (
     <div className="home">
@@ -395,16 +425,16 @@ export default function HomePage() {
           </div>
 
           <h1 className="hero__title">
-            <span className="hero__title-line">Stop juggling apps.</span>
-            <span className="hero__title-line hero__title-gradient">Start creating with Clarix.</span>
+            <span className="hero__title-line">Create anything.</span>
+            <span className="hero__title-line hero__title-gradient">Research everything.</span>
           </h1>
 
           <p className="hero__desc">
             15 AI tools in one workspace &mdash; images, videos, music, docs, code, and more.
-            Powered by the world&apos;s best AI, working together for you.
+            Built from the ground up by Clarix, for you.
           </p>
 
-          {/* ── Minimalist Prompt Bar ── */}
+          {/* ── Prompt Bar (toolbar style) ── */}
           <div className="prompt-container">
             <div className={`prompt-bar ${isExpanded ? 'prompt-bar--expanded' : ''}`}>
               <div className="prompt-bar__glow" />
@@ -462,10 +492,12 @@ export default function HomePage() {
                         value={promptValue}
                         rows={1}
                         onChange={handleTextareaChange}
+                        onFocus={() => setIsFocused(true)}
+                        onBlur={() => { if (!promptValue) setIsFocused(false); }}
                         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); } }}
                         placeholder={promptValue ? '' : undefined}
                       />
-                      {!promptValue && (
+                      {!promptValue && !isFocused && (
                         <div className="prompt-bar__placeholder-anim">
                           <span>{placeholder}</span>
                           <span className="prompt-bar__cursor" />
@@ -481,25 +513,34 @@ export default function HomePage() {
                       </div>
                     )}
 
-                    {/* Bottom control row */}
+                    {/* Bottom control row — toolbar style */}
                     <div className="prompt-bar__controls">
-                      <button
-                        className="prompt-bar__attach-btn"
-                        title="Attach file"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        <Plus size={20} />
-                      </button>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        className="sr-only"
-                        onChange={(e) => {
-                          const f = e.target.files?.[0];
-                          if (f) setAttachedFile(f);
-                          e.target.value = '';
-                        }}
-                      />
+                      <div className="prompt-bar__controls-left">
+                        <button
+                          className="prompt-bar__attach-btn"
+                          title="Attach file"
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          <Plus size={20} />
+                        </button>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          className="sr-only"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) setAttachedFile(f);
+                            e.target.value = '';
+                          }}
+                        />
+                        <button
+                          className={`prompt-bar__mode-chip ${promptMode === 'auto' ? 'prompt-bar__mode-chip--active' : ''}`}
+                          onClick={() => setPromptMode('auto')}
+                        >
+                          <Zap size={14} />
+                          <span>Auto</span>
+                        </button>
+                      </div>
                       <div className="prompt-bar__controls-right">
                         <button
                           className="prompt-bar__mic-btn"
@@ -509,12 +550,26 @@ export default function HomePage() {
                           <Mic size={18} />
                         </button>
                         <button
+                          className={`prompt-bar__mode-chip prompt-bar__mode-chip--research ${promptMode === 'research' ? 'prompt-bar__mode-chip--active' : ''}`}
+                          onClick={() => setPromptMode(promptMode === 'research' ? 'auto' : 'research')}
+                        >
+                          <SearchIcon size={14} />
+                          <span>Research</span>
+                        </button>
+                        <button
+                          className={`prompt-bar__mode-chip prompt-bar__mode-chip--create ${promptMode === 'create' ? 'prompt-bar__mode-chip--active' : ''}`}
+                          onClick={() => setPromptMode(promptMode === 'create' ? 'auto' : 'create')}
+                        >
+                          <Zap size={14} />
+                          <span>Create</span>
+                        </button>
+                        <button
                           className={`prompt-bar__send-btn ${promptValue.trim() ? 'prompt-bar__send-btn--active' : ''}`}
                           title="Send"
                           onClick={handleSubmit}
                           disabled={!promptValue.trim()}
                         >
-                          <ArrowUp size={18} />
+                          <ArrowRight size={18} />
                         </button>
                       </div>
                     </div>
@@ -524,17 +579,35 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* ── Capsule Suggestion Pills ── */}
-          <div className="prompt-capsules">
-            {CAPSULE_SUGGESTIONS.map((capsule, i) => (
-              <button
-                key={i}
-                className="prompt-capsule"
-                onClick={() => handleCapsuleClick(capsule.prompt)}
-              >
-                <capsule.icon size={16} />
-                <span>{capsule.label}</span>
-              </button>
+          {/* ── Categorized Tool Icon Bar ── */}
+          <div className="hero-tools-bar">
+            {HERO_TOOL_CATEGORIES.map((cat) => (
+              <div key={cat.title} className="hero-tools-bar__category">
+                <span className="hero-tools-bar__title">{cat.title}</span>
+                <div className="hero-tools-bar__icons">
+                  {cat.tools.map((tool) => (
+                    <Link key={tool.href} href={tool.href} className="hero-tools-bar__item">
+                      <div className="hero-tools-bar__icon" style={{ background: `${tool.color}18`, border: `1px solid ${tool.color}30` }}>
+                        <span style={{ fontSize: '1.2rem' }}>
+                          {tool.href === '/slides' && '📊'}
+                          {tool.href === '/sheets' && '📈'}
+                          {tool.href === '/docs' && '📄'}
+                          {tool.href === '/designer' && '✨'}
+                          {tool.href === '/developer' && '⚡'}
+                          {tool.href === '/chat' && '💬'}
+                          {tool.href === '/image' && '🎨'}
+                          {tool.href === '/video' && '🎬'}
+                          {tool.href === '/music' && '🎵'}
+                          {tool.href === '/meeting-notes' && '🎤'}
+                          {tool.href === '/search' && '🔍'}
+                          {tool.href === '/agents' && '🤖'}
+                        </span>
+                      </div>
+                      <span className="hero-tools-bar__label">{tool.label}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </section>
@@ -603,7 +676,7 @@ export default function HomePage() {
               <Link
                 key={tool.href}
                 href={tool.href}
-                className={`tool-card ${i < 4 ? 'tool-card--hero' : 'tool-card--compact'}`}
+                className="tool-card"
                 style={{
                   '--tool-color': tool.color,
                   '--tool-glow': tool.glow,

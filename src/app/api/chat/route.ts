@@ -14,6 +14,19 @@ import {
 } from '@/lib/creditGuard';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rateLimit';
 
+/* ── Reasoning System Prompt ── */
+const REASONING_SYSTEM_PROMPT = `Before answering, think through your reasoning step-by-step inside <thinking> tags. Show your analysis, considerations, and any calculations. Then provide your final answer outside the tags.
+
+Example:
+<thinking>
+Let me analyze this step by step...
+1. First consideration...
+2. Second consideration...
+Conclusion: ...
+</thinking>
+
+Here is my answer...`;
+
 /* ── Types ── */
 interface ChatMessage {
     role: 'user' | 'assistant' | 'system';
@@ -34,13 +47,13 @@ interface ProviderConfig {
     color: string;
     apiKeyEnv: string;
     buildRequest: (messages: ChatMessage[], apiKey: string) => { url: string; init: RequestInit };
-    parseStream: (reader: ReadableStreamDefaultReader<Uint8Array>) => AsyncGenerator<string | { __usage: { inputTokens?: number; outputTokens?: number } }>;
+    parseStream: (reader: ReadableStreamDefaultReader<Uint8Array>) => AsyncGenerator<string | { __thinking: string } | { __usage: { inputTokens?: number; outputTokens?: number } }>;
 }
 
 /* ── SSE Stream Parsers ── */
 
 /** OpenAI-compatible SSE parser (works for OpenAI, DeepSeek, xAI) */
-async function* parseOpenAIStream(reader: ReadableStreamDefaultReader<Uint8Array>): AsyncGenerator<string | { __usage: { inputTokens?: number; outputTokens?: number } }> {
+async function* parseOpenAIStream(reader: ReadableStreamDefaultReader<Uint8Array>): AsyncGenerator<string | { __thinking: string } | { __usage: { inputTokens?: number; outputTokens?: number } }> {
     const decoder = new TextDecoder();
     let buffer = '';
 
@@ -77,12 +90,13 @@ async function* parseOpenAIStream(reader: ReadableStreamDefaultReader<Uint8Array
     }
 }
 
-/** Anthropic SSE parser (content_block_delta events) */
-async function* parseAnthropicStream(reader: ReadableStreamDefaultReader<Uint8Array>): AsyncGenerator<string | { __usage: { inputTokens?: number; outputTokens?: number } }> {
+/** Anthropic SSE parser (content_block_delta events — with thinking support) */
+async function* parseAnthropicStream(reader: ReadableStreamDefaultReader<Uint8Array>): AsyncGenerator<string | { __thinking: string } | { __usage: { inputTokens?: number; outputTokens?: number } }> {
     const decoder = new TextDecoder();
     let buffer = '';
     let inputTokens: number | undefined;
     let outputTokens: number | undefined;
+    let currentBlockType: 'text' | 'thinking' | null = null;
 
     while (true) {
         const { done, value } = await reader.read();
@@ -108,8 +122,20 @@ async function* parseAnthropicStream(reader: ReadableStreamDefaultReader<Uint8Ar
                     outputTokens = parsed.usage.output_tokens;
                     yield { __usage: { inputTokens, outputTokens } };
                 }
-                if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
-                    yield parsed.delta.text;
+                // Track content block type (thinking vs text)
+                if (parsed.type === 'content_block_start') {
+                    currentBlockType = parsed.content_block?.type === 'thinking' ? 'thinking' : 'text';
+                }
+                if (parsed.type === 'content_block_stop') {
+                    currentBlockType = null;
+                }
+                // Yield thinking content as special type
+                if (parsed.type === 'content_block_delta') {
+                    if (currentBlockType === 'thinking' && parsed.delta?.thinking) {
+                        yield { __thinking: parsed.delta.thinking };
+                    } else if (parsed.delta?.text) {
+                        yield parsed.delta.text;
+                    }
                 }
             } catch {
                 // Skip malformed JSON chunks
@@ -119,7 +145,7 @@ async function* parseAnthropicStream(reader: ReadableStreamDefaultReader<Uint8Ar
 }
 
 /** Google Gemini streaming parser (line-delimited JSON array) */
-async function* parseGeminiStream(reader: ReadableStreamDefaultReader<Uint8Array>): AsyncGenerator<string | { __usage: { inputTokens?: number; outputTokens?: number } }> {
+async function* parseGeminiStream(reader: ReadableStreamDefaultReader<Uint8Array>): AsyncGenerator<string | { __thinking: string } | { __usage: { inputTokens?: number; outputTokens?: number } }> {
     const decoder = new TextDecoder();
     let buffer = '';
 
@@ -190,7 +216,10 @@ function getProviderConfig(modelId: string): ProviderConfig | null {
                     },
                     body: JSON.stringify({
                         model: 'deepseek-chat',
-                        messages,
+                        messages: [
+                            { role: 'system', content: REASONING_SYSTEM_PROMPT },
+                            ...messages,
+                        ],
                         stream: true,
                         stream_options: { include_usage: true },
                     }),
@@ -214,8 +243,12 @@ function getProviderConfig(modelId: string): ProviderConfig | null {
                     },
                     body: JSON.stringify({
                         model: 'claude-sonnet-4-20250514',
-                        max_tokens: 4096,
+                        max_tokens: 16000,
                         stream: true,
+                        thinking: {
+                            type: 'enabled',
+                            budget_tokens: 8000,
+                        },
                         system: messages.filter(m => m.role === 'system').map(m => m.content).join('\n') || undefined,
                         messages: messages.filter(m => m.role !== 'system').map(m => ({
                             role: m.role,
@@ -242,7 +275,10 @@ function getProviderConfig(modelId: string): ProviderConfig | null {
                     },
                     body: JSON.stringify({
                         model: 'gpt-4o',
-                        messages,
+                        messages: [
+                            { role: 'system', content: REASONING_SYSTEM_PROMPT },
+                            ...messages,
+                        ],
                         stream: true,
                         stream_options: { include_usage: true },
                     }),
@@ -265,10 +301,12 @@ function getProviderConfig(modelId: string): ProviderConfig | null {
                         parts: [{ text: m.content }],
                     }));
 
-                const systemInstruction = messages
-                    .filter(m => m.role === 'system')
-                    .map(m => m.content)
-                    .join('\n');
+                const systemInstruction = [
+                    REASONING_SYSTEM_PROMPT,
+                    ...messages
+                        .filter(m => m.role === 'system')
+                        .map(m => m.content),
+                ].join('\n');
 
                 return {
                     url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:streamGenerateContent?alt=sse&key=${apiKey}`,
@@ -543,15 +581,71 @@ export async function POST(req: NextRequest) {
                 const reader = upstreamBody.getReader();
                 const streamParser = finalProvider.parseStream(reader);
 
+                let thinkingBuffer = '';
+                let insideThinking = false;
+                let thinkingContent = '';
+
                 for await (const chunk of streamParser) {
                     // Check if this is a token usage signal from the parser
                     if (typeof chunk === 'object' && '__usage' in chunk) {
                         providerTokens = { ...providerTokens, ...chunk.__usage };
                         continue;
                     }
-                    fullResponse += chunk;
-                    const chunkEvent = JSON.stringify({ type: 'chunk', text: chunk });
-                    controller.enqueue(encoder.encode(`data: ${chunkEvent}\n\n`));
+                    // Check if this is a native thinking block (Anthropic)
+                    if (typeof chunk === 'object' && '__thinking' in chunk) {
+                        thinkingContent += chunk.__thinking;
+                        const thinkEvent = JSON.stringify({ type: 'thinking', text: chunk.__thinking });
+                        controller.enqueue(encoder.encode(`data: ${thinkEvent}\n\n`));
+                        continue;
+                    }
+
+                    // For non-Anthropic providers: parse <thinking> tags from the text stream
+                    thinkingBuffer += chunk;
+
+                    // Process the buffer to separate thinking from content
+                    while (thinkingBuffer.length > 0) {
+                        if (!insideThinking) {
+                            const openIdx = thinkingBuffer.indexOf('<thinking>');
+                            if (openIdx === -1) {
+                                // No thinking tag — emit all as content
+                                fullResponse += thinkingBuffer;
+                                const chunkEvent = JSON.stringify({ type: 'chunk', text: thinkingBuffer });
+                                controller.enqueue(encoder.encode(`data: ${chunkEvent}\n\n`));
+                                thinkingBuffer = '';
+                            } else {
+                                // Emit content before the tag
+                                if (openIdx > 0) {
+                                    const before = thinkingBuffer.slice(0, openIdx);
+                                    fullResponse += before;
+                                    const chunkEvent = JSON.stringify({ type: 'chunk', text: before });
+                                    controller.enqueue(encoder.encode(`data: ${chunkEvent}\n\n`));
+                                }
+                                thinkingBuffer = thinkingBuffer.slice(openIdx + '<thinking>'.length);
+                                insideThinking = true;
+                            }
+                        } else {
+                            const closeIdx = thinkingBuffer.indexOf('</thinking>');
+                            if (closeIdx === -1) {
+                                // Still inside thinking — emit as thinking and wait for more
+                                if (thinkingBuffer.length > 0) {
+                                    thinkingContent += thinkingBuffer;
+                                    const thinkEvent = JSON.stringify({ type: 'thinking', text: thinkingBuffer });
+                                    controller.enqueue(encoder.encode(`data: ${thinkEvent}\n\n`));
+                                }
+                                thinkingBuffer = '';
+                            } else {
+                                // Found closing tag
+                                const thinkText = thinkingBuffer.slice(0, closeIdx);
+                                if (thinkText.length > 0) {
+                                    thinkingContent += thinkText;
+                                    const thinkEvent = JSON.stringify({ type: 'thinking', text: thinkText });
+                                    controller.enqueue(encoder.encode(`data: ${thinkEvent}\n\n`));
+                                }
+                                thinkingBuffer = thinkingBuffer.slice(closeIdx + '</thinking>'.length);
+                                insideThinking = false;
+                            }
+                        }
+                    }
                 }
 
                 // ── Settle credits (Phase 2) ──

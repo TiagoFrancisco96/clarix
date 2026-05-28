@@ -10,6 +10,7 @@ interface Message {
     id: string;
     role: 'user' | 'assistant' | 'system';
     content: string;
+    reasoning?: string;
     model?: string;
     modelColor?: string;
     timestamp: number;
@@ -108,6 +109,7 @@ function ChatPageInner() {
     const [isGenerating, setIsGenerating] = useState(false);
     const [showHistory, setShowHistory] = useState(false);
     const [activeAgent, setActiveAgent] = useState<AgentDefinition | null>(null);
+    const [expandedReasoning, setExpandedReasoning] = useState<Set<string>>(new Set());
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -293,6 +295,7 @@ function ChatPageInner() {
                 const decoder = new TextDecoder();
                 let sseBuffer = '';
                 let streamedContent = '';
+                let streamedReasoning = '';
 
                 while (true) {
                     const { done, value } = await reader.read();
@@ -341,6 +344,26 @@ function ChatPageInner() {
                                         return c;
                                     })
                                 );
+                            } else if (event.type === 'thinking') {
+                                streamedReasoning += event.text;
+                                const updatedReasoning = streamedReasoning;
+                                // Auto-expand reasoning while generating
+                                setExpandedReasoning(prev => {
+                                    const next = new Set(prev);
+                                    next.add(assistantMsgId);
+                                    return next;
+                                });
+                                setConversations((prev) =>
+                                    prev.map((c) => {
+                                        if (c.id === convId) {
+                                            const msgs = [...c.messages];
+                                            const lastIdx = msgs.length - 1;
+                                            msgs[lastIdx] = { ...msgs[lastIdx], reasoning: updatedReasoning };
+                                            return { ...c, messages: msgs };
+                                        }
+                                        return c;
+                                    })
+                                );
                             } else if (event.type === 'error') {
                                 streamedContent += `\n\n⚠️ ${event.message}`;
                                 const errorContent = streamedContent;
@@ -380,6 +403,12 @@ function ChatPageInner() {
                 );
             } finally {
                 setIsGenerating(false);
+                // Auto-collapse reasoning after generation completes
+                setExpandedReasoning(prev => {
+                    const next = new Set(prev);
+                    next.delete(assistantMsgId);
+                    return next;
+                });
             }
         },
         [input, attachedFile, isGenerating, activeConvId, selectedModel, createNewConversation, activeAgent, conversations]
@@ -647,6 +676,35 @@ function ChatPageInner() {
                                                 </span>
                                             )}
                                         </div>
+                                        {/* Reasoning Toggle */}
+                                        {msg.role === 'assistant' && msg.reasoning && (
+                                            <div className={`chat-reasoning ${expandedReasoning.has(msg.id) ? 'chat-reasoning--open' : ''}`}>
+                                                <button
+                                                    className="chat-reasoning__toggle"
+                                                    onClick={() => {
+                                                        setExpandedReasoning(prev => {
+                                                            const next = new Set(prev);
+                                                            if (next.has(msg.id)) {
+                                                                next.delete(msg.id);
+                                                            } else {
+                                                                next.add(msg.id);
+                                                            }
+                                                            return next;
+                                                        });
+                                                    }}
+                                                >
+                                                    <svg className="chat-reasoning__arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                        <polyline points="9 18 15 12 9 6" />
+                                                    </svg>
+                                                    <span>Show AI reasoning</span>
+                                                </button>
+                                                <div className="chat-reasoning__content">
+                                                    <div className="chat-reasoning__text">
+                                                        <MessageContent content={msg.reasoning} />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
                                         <div className="chat-message__content">
                                             <MessageContent content={msg.content} />
                                         </div>
